@@ -1,0 +1,33 @@
+{
+  "name": "Rust DevContainer",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "fill-labs.dependi",
+        "tamasfe.even-better-toml",
+        "Augment.vscode-augment"
+      ],
+      "settings": {
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.cargo.features": "all",
+        "rust-analyzer.procMacro.enable": true,
+        "rust-analyzer.inlayHints.enable": true,
+        "rust-analyzer.completion.addCallParentheses": false,
+        "rust-analyzer.completion.addCallArgumentSnippets": false,
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "forwardPorts": [3000, 8000, 8080],
+  "postCreateCommand": "rustc --version && cargo --version",
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  }
+}
