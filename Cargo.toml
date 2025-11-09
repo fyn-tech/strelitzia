@@ -1,0 +1,16 @@
+[package]
+name = "strelitzia"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+argmin = "0.11.0"
+csgrs = "0.20.1"
+delaunator = "1.0.2"
+glam = "0.30.9"
+nalgebra = "0.34.1"
+ndarray-linalg = "0.18.0"
+robust = "1.2.0"
+russell_sparse = "1.10.0"
+spade = "2.15.0"
+sprs = "0.11.4"
