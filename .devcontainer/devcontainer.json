@@ -19,7 +19,8 @@
         "rust-analyzer.inlayHints.enable": true,
         "rust-analyzer.completion.addCallParentheses": false,
         "rust-analyzer.completion.addCallArgumentSnippets": false,
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   },
