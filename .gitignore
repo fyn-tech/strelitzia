@@ -25,5 +25,7 @@ target
 
 /target
 
-# Paraview output
+# Output files
+output/
 *.vtu
+*.svg
