@@ -10,7 +10,7 @@
         "vadimcn.vscode-lldb",
         "fill-labs.dependi",
         "tamasfe.even-better-toml",
-        "Augment.vscode-augment"
+        "github.vscode-github-actions"
       ],
       "settings": {
         "rust-analyzer.check.command": "clippy",
@@ -25,10 +25,7 @@
     }
   },
   "forwardPorts": [3000, 8000, 8080],
-  "postCreateCommand": "rustc --version && cargo --version",
+  "postCreateCommand": "echo 'Verifying Rust installation...' && rustc --version && cargo --version && echo 'Post-create command completed.'",
   "remoteUser": "vscode",
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
-  }
+  "updateRemoteUserUID": false
 }

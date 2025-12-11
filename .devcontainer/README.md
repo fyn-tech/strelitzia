@@ -15,11 +15,11 @@ This devcontainer provides a complete Rust development environment with all nece
 - **CodeLLDB**: Integrated debugging with breakpoints
 - **Dependi**: Crate dependency management and version updates
 - **Even Better TOML**: Enhanced TOML file support
-- **Augment**: AI-powered coding assistant
+- **GitHub Actions**: Workflow syntax highlighting and validation
 
 ### Additional Tools
 - **Git**: Version control
-- **GitHub CLI**: GitHub integration
+- **Python 3**: For matplotlib-based visualization
 
 ## Getting Started
 
@@ -36,6 +36,16 @@ This devcontainer provides a complete Rust development environment with all nece
    cd my_project
    cargo run
    ```
+
+## Testing
+
+Run the environment verification script to check that all tools are correctly installed:
+
+```bash
+./.devcontainer/test-setup.sh
+```
+
+This script is also run automatically in CI when changes are made to the `.devcontainer/` directory.
 
 ## Customization
 
