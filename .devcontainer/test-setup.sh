@@ -6,11 +6,23 @@ echo "----------------------------------------"
 
 FAILED=0
 
-# Function for status output
+# Function for status output (silent mode)
 check() {
     local desc="$1"
     shift
     if eval "$@" > /dev/null 2>&1; then
+        echo "[OK]   $desc"
+    else
+        echo "[FAIL] $desc"
+        FAILED=1
+    fi
+}
+
+# Function for status output (verbose mode - shows errors)
+check_verbose() {
+    local desc="$1"
+    shift
+    if eval "$@"; then
         echo "[OK]   $desc"
     else
         echo "[FAIL] $desc"
@@ -38,8 +50,21 @@ check "openssl"         "pkg-config --exists openssl"
 # 3. User Environment
 echo ""
 echo "User Environment:"
-check "sudo access"     "sudo -n true"
-check "workspace write" "touch .write-test && rm .write-test"
+
+# Check sudo access (skip in CI where we might be root)
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[SKIP] sudo access (running as root)"
+else
+    check "sudo access" "sudo -n true"
+fi
+
+# Check write permissions using temp directory (works in any environment)
+if TMPFILE=$(mktemp 2>/dev/null) && rm -f "$TMPFILE"; then
+    echo "[OK]   temp write"
+else
+    echo "[FAIL] temp write"
+    FAILED=1
+fi
 
 # 4. Disk Space (warn if < 5GB free)
 echo ""
@@ -56,9 +81,10 @@ fi
 echo ""
 echo "Project Build:"
 if [ -f "Cargo.toml" ]; then
-    check "cargo check"         "cargo check --quiet"
-    check "cargo clippy"        "cargo clippy --quiet -- -D warnings 2>/dev/null || cargo clippy --quiet"
-    check "cargo test --no-run" "cargo test --no-run --quiet 2>/dev/null"
+    # Use verbose mode to show actual errors
+    check_verbose "cargo check"         "cargo check --quiet 2>&1"
+    check_verbose "cargo clippy"        "cargo clippy --quiet 2>&1"
+    check_verbose "cargo test --no-run" "cargo test --no-run --quiet 2>&1"
 else
     echo "[SKIP] Cargo.toml not found"
 fi

@@ -19,8 +19,5 @@ jobs:
       - name: Build and Run Test
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/${{ github.repository }}/devcontainer
-          cacheFrom: ghcr.io/${{ github.repository }}/devcontainer
+          push: never
           runCmd: ./.devcontainer/test-setup.sh
-
-
