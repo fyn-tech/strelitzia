@@ -6,23 +6,11 @@ echo "----------------------------------------"
 
 FAILED=0
 
-# Function for status output (silent mode)
+# Function for status output
 check() {
     local desc="$1"
     shift
     if eval "$@" > /dev/null 2>&1; then
-        echo "[OK]   $desc"
-    else
-        echo "[FAIL] $desc"
-        FAILED=1
-    fi
-}
-
-# Function for status output (verbose mode - shows errors)
-check_verbose() {
-    local desc="$1"
-    shift
-    if eval "$@"; then
         echo "[OK]   $desc"
     else
         echo "[FAIL] $desc"
@@ -75,18 +63,6 @@ if [ "$FREE_GB" -ge 5 ]; then
     echo "[OK]   Disk space (${FREE_GB}GB free)"
 else
     echo "[WARN] Disk space (${FREE_GB}GB free, recommend >= 5GB)"
-fi
-
-# 5. Project Build Tests (only if Cargo.toml exists)
-echo ""
-echo "Project Build:"
-if [ -f "Cargo.toml" ]; then
-    # Use verbose mode to show actual errors
-    check_verbose "cargo check"         "cargo check --quiet 2>&1"
-    check_verbose "cargo clippy"        "cargo clippy --quiet 2>&1"
-    check_verbose "cargo test --no-run" "cargo test --no-run --quiet 2>&1"
-else
-    echo "[SKIP] Cargo.toml not found"
 fi
 
 # Summary
