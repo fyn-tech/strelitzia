@@ -92,7 +92,9 @@ impl<'a> FieldArray<'a> {
     /// Create field array from Pod-compatible data.
     ///
     /// # Example
-    /// ```ignore
+    /// ```
+    /// use strelitzia::visualiser::FieldArray;
+    ///
     /// let temp: Vec<f64> = vec![0.0, 1.0, 2.0];
     /// let field = FieldArray::from_slice("temperature", &temp, 1);
     /// ```
@@ -122,4 +124,3 @@ mod tests {
         assert_eq!(VTKCellType::from(CellType::Hexa) as u8, 12);
     }
 }
-

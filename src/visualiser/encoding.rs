@@ -3,8 +3,7 @@
 //! Provides a minimal base64 encoder for VTK XML binary format.
 //! This is an internal implementation detail and not exposed in the public API.
 
-const ALPHABET: &[u8; 64] =
-    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /// Encode binary data to base64 string.
 ///
@@ -48,4 +47,3 @@ pub(crate) fn encode(data: &[u8]) -> String {
 
     result
 }
-

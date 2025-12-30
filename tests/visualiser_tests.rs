@@ -1,8 +1,8 @@
 //! Integration tests for the VTK writer module.
 
-use strelitzia::visualiser::{write_vtu, CellType, Encoding, FieldArray};
 use std::fs;
 use std::path::PathBuf;
+use strelitzia::visualiser::{CellType, Encoding, FieldArray, write_vtu};
 
 // ============================================================================
 // Test Infrastructure
@@ -66,16 +66,8 @@ fn test_point_cloud_2d_ascii() {
 
     let points: Vec<[f64; 2]> = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 
-    write_vtu::<_, 2>(
-        guard.path(),
-        &points,
-        None,
-        None,
-        &[],
-        &[],
-        Encoding::Ascii,
-    )
-    .expect("Should write point cloud");
+    write_vtu::<_, 2>(guard.path(), &points, None, None, &[], &[], Encoding::Ascii)
+        .expect("Should write point cloud");
 
     verify_file_exists(guard.path());
     verify_vtk_header(guard.path());
@@ -89,7 +81,10 @@ fn test_point_cloud_2d_ascii() {
         content.contains("NumberOfCells=\"4\""),
         "Should have 4 auto-generated vertex cells"
     );
-    assert!(content.contains("format=\"ascii\""), "Should be ASCII format");
+    assert!(
+        content.contains("format=\"ascii\""),
+        "Should be ASCII format"
+    );
 }
 
 #[test]
@@ -252,7 +247,10 @@ fn test_mixed_cell_types() {
         "Should have 2 cells"
     );
     // VTK_TRIANGLE = 5, VTK_QUAD = 9
-    assert!(content.contains("5 9"), "Should have triangle and quad types");
+    assert!(
+        content.contains("5 9"),
+        "Should have triangle and quad types"
+    );
 }
 
 #[test]
@@ -628,16 +626,8 @@ fn test_empty_point_cloud() {
 
     let points: Vec<[f64; 3]> = vec![];
 
-    write_vtu::<_, 3>(
-        guard.path(),
-        &points,
-        None,
-        None,
-        &[],
-        &[],
-        Encoding::Ascii,
-    )
-    .expect("Should write empty point cloud");
+    write_vtu::<_, 3>(guard.path(), &points, None, None, &[], &[], Encoding::Ascii)
+        .expect("Should write empty point cloud");
 
     verify_file_exists(guard.path());
     verify_vtk_header(guard.path());
@@ -661,16 +651,8 @@ fn test_invalid_dimension_size() {
     // Wrong: using [f32; 3] with DIM=3 (expects [f64; 3])
     let points: Vec<[f32; 3]> = vec![[0.0, 0.0, 0.0]];
 
-    write_vtu::<_, 3>(
-        guard.path(),
-        &points,
-        None,
-        None,
-        &[],
-        &[],
-        Encoding::Ascii,
-    )
-    .expect("Should fail with size mismatch");
+    write_vtu::<_, 3>(guard.path(), &points, None, None, &[], &[], Encoding::Ascii)
+        .expect("Should fail with size mismatch");
 }
 
 #[test]
@@ -680,11 +662,7 @@ fn test_cell_type_conversions() {
     // but we can verify the behavior through file output
     let guard = TestFileGuard::new("cell_type_test.vtu");
 
-    let points: Vec<[f64; 3]> = vec![
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0],
-        [0.5, 1.0, 0.0],
-    ];
+    let points: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]];
 
     let connectivity = vec![vec![0, 1, 2]];
     let cell_types = vec![CellType::Triangle];
@@ -702,9 +680,5 @@ fn test_cell_type_conversions() {
 
     let content = fs::read_to_string(guard.path()).expect("Should read file");
     // VTK_TRIANGLE = 5
-    assert!(
-        content.contains("5"),
-        "Triangle should map to VTK type 5"
-    );
+    assert!(content.contains("5"), "Triangle should map to VTK type 5");
 }
-

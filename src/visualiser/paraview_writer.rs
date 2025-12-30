@@ -5,7 +5,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use strelitzia::visualiser::*;
 //!
 //! // Write a point cloud (auto-infers VTK_VERTEX cells)
@@ -16,6 +16,7 @@
 //! let connectivity = vec![vec![0, 1, 2], vec![1, 2, 3]];
 //! let cell_types = vec![CellType::Triangle, CellType::Triangle];
 //! write_vtu::<_, 3>("mesh.vtu", &points, Some(&connectivity), Some(&cell_types), &[], &[], Encoding::Base64)?;
+//! # Ok::<(), std::io::Error>(())
 //! ```
 
 use crate::visualiser::encoding;
@@ -32,8 +33,6 @@ const OFFSETS_PER_LINE: usize = 10;
 const CELL_TYPES_PER_LINE: usize = 20;
 const FIELD_VALUES_PER_LINE: usize = 6;
 
-
-
 /// Write mesh data to VTK XML UnstructuredGrid format (.vtu).
 ///
 /// # Arguments
@@ -48,21 +47,33 @@ const FIELD_VALUES_PER_LINE: usize = 6;
 /// # Examples
 ///
 /// Point cloud:
-/// ```ignore
+/// ```no_run
+/// # use strelitzia::visualiser::*;
+/// # let points: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
 /// write_vtu::<_, 3>("cloud.vtu", &points, None, None, &[], &[], Encoding::Base64)?;
+/// # Ok::<(), std::io::Error>(())
 /// ```
 ///
 /// Triangle mesh:
-/// ```ignore
+/// ```no_run
+/// # use strelitzia::visualiser::*;
+/// # let points: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]];
 /// let connectivity = vec![vec![0, 1, 2]];
 /// let cell_types = vec![CellType::Triangle];
 /// write_vtu::<_, 3>("mesh.vtu", &points, Some(&connectivity), Some(&cell_types), &[], &[], Encoding::Base64)?;
+/// # Ok::<(), std::io::Error>(())
 /// ```
 ///
 /// With fields:
-/// ```ignore
+/// ```no_run
+/// # use strelitzia::visualiser::*;
+/// # let points: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0]];
+/// # let conn = vec![vec![0]];
+/// # let types = vec![CellType::Vertex];
+/// # let temp_data: Vec<f64> = vec![25.0];
 /// let temp = FieldArray::from_slice("temperature", &temp_data, 1);
 /// write_vtu::<_, 3>("mesh.vtu", &points, Some(&conn), Some(&types), &[temp], &[], Encoding::Base64)?;
+/// # Ok::<(), std::io::Error>(())
 /// ```
 pub fn write_vtu<V, const DIM: usize>(
     path: impl AsRef<Path>,
@@ -94,7 +105,13 @@ where
         encoding,
     };
 
-    writer.write_unstructured_grid::<V, DIM>(points, connectivity, cell_types, point_fields, cell_fields)
+    writer.write_unstructured_grid::<V, DIM>(
+        points,
+        connectivity,
+        cell_types,
+        point_fields,
+        cell_fields,
+    )
 }
 
 /// Internal writer implementation.
@@ -128,12 +145,8 @@ impl<'a> VtkWriter<'a> {
         }
 
         // Determine cell data (auto-infer vertices if not provided)
-        let (conn, types): (Vec<Vec<usize>>, Vec<VTKCellType>) = match (connectivity, cell_types)
-        {
-            (Some(c), Some(t)) => (
-                c.to_vec(),
-                t.iter().map(|&ct| ct.into()).collect(),
-            ),
+        let (conn, types): (Vec<Vec<usize>>, Vec<VTKCellType>) = match (connectivity, cell_types) {
+            (Some(c), Some(t)) => (c.to_vec(), t.iter().map(|&ct| ct.into()).collect()),
             (None, None) => {
                 // Auto-generate vertex cells
                 let vertex_conn: Vec<Vec<usize>> = (0..points.len()).map(|i| vec![i]).collect();
@@ -287,7 +300,11 @@ impl<'a> VtkWriter<'a> {
     }
 
     /// Write Cells section (connectivity, offsets, types).
-    fn write_cells(&mut self, connectivity: &[Vec<usize>], types: &[VTKCellType]) -> io::Result<()> {
+    fn write_cells(
+        &mut self,
+        connectivity: &[Vec<usize>],
+        types: &[VTKCellType],
+    ) -> io::Result<()> {
         writeln!(self.file, "      <Cells>")?;
 
         // Write connectivity array (on-the-fly flattening)
@@ -320,7 +337,10 @@ impl<'a> VtkWriter<'a> {
             Encoding::Base64 => {
                 writeln!(self.file, ">")?;
                 write!(self.file, "          ")?;
-                let flat: Vec<i32> = connectivity.iter().flat_map(|cell| cell.iter().map(|&i| i as i32)).collect();
+                let flat: Vec<i32> = connectivity
+                    .iter()
+                    .flat_map(|cell| cell.iter().map(|&i| i as i32))
+                    .collect();
                 self.write_base64_i32(&flat)?;
                 writeln!(self.file)?;
                 writeln!(self.file, "        </DataArray>")?;
@@ -356,10 +376,13 @@ impl<'a> VtkWriter<'a> {
                 writeln!(self.file, ">")?;
                 write!(self.file, "          ")?;
                 let mut offset = 0;
-                let offsets: Vec<i32> = connectivity.iter().map(|cell| {
-                    offset += cell.len() as i32;
-                    offset
-                }).collect();
+                let offsets: Vec<i32> = connectivity
+                    .iter()
+                    .map(|cell| {
+                        offset += cell.len() as i32;
+                        offset
+                    })
+                    .collect();
                 self.write_base64_i32(&offsets)?;
                 writeln!(self.file)?;
                 writeln!(self.file, "        </DataArray>")?;

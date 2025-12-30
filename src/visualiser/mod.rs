@@ -8,4 +8,3 @@ pub mod vtk_types;
 
 pub use paraview_writer::write_vtu;
 pub use vtk_types::{CellType, Encoding, FieldArray};
-

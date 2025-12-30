@@ -1,18 +1,13 @@
 //! Demonstration of ParaView VTK writer functionality.
 
-use strelitzia::visualiser::{write_vtu, CellType, Encoding, FieldArray};
+use strelitzia::visualiser::{CellType, Encoding, FieldArray, write_vtu};
 
 fn main() -> std::io::Result<()> {
     println!("=== ParaView VTK Writer Demo ===\n");
 
     // Example 1: Point cloud (auto-infers VTK_VERTEX cells)
     println!("Example 1: Writing point cloud...");
-    let points_2d: Vec<[f64; 2]> = vec![
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [1.0, 1.0],
-        [0.0, 1.0],
-    ];
+    let points_2d: Vec<[f64; 2]> = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 
     write_vtu::<_, 2>(
         "point_cloud_2d.vtu",
@@ -152,4 +147,3 @@ fn main() -> std::io::Result<()> {
 
     Ok(())
 }
-

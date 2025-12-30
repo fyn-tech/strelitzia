@@ -3,6 +3,10 @@ name = "strelitzia"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+single-precision = []  # Use f32 instead of f64 for Real type
+
 [dependencies]
 argmin = "0.11.0"
 argmin-math = "0.5.1"
