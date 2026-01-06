@@ -4,17 +4,11 @@
 use super::layout::Field;
 use super::types::*;
 
-/// Provides element access for a field.
-///
-/// # Type Parameters
-///
-/// * `NumT` - Numeric type (`f64`, `f32`)
-/// * `N` - Components per element
+/// Provides typed element access. Output is `NumT` for scalars, `[NumT; N]` otherwise.
 pub trait FieldView<NumT, const N: usize> {
-    /// Output type: `NumT` for scalars, `[NumT; N]` for vectors/tensors.
     type Output;
 
-    /// Returns the element at the given index. Panics if out of bounds.
+    /// Returns element at `idx`. Panics if out of bounds.
     fn get(&self, idx: usize) -> Self::Output;
 }
 
@@ -31,11 +25,13 @@ impl<NumT: Copy + Default> FieldView<NumT, 1> for Field<Scalar, NumT, 1> {
 impl<NumT: Copy + Default, const N: usize> FieldView<NumT, N> for Field<Vector, NumT, N> {
     type Output = [NumT; N];
 
+    #[allow(clippy::needless_range_loop)] // Intentional for SIMD auto-vectorization
     fn get(&self, idx: usize) -> Self::Output {
         let chunk_idx = idx / super::layout::CHUNK_SIZE;
         let local_idx = idx % super::layout::CHUNK_SIZE;
 
         let mut out = [NumT::default(); N];
+        // AoSoA layout: data[component][element]
         for i in 0..N {
             out[i] = self.chunks[chunk_idx].data[i][local_idx];
         }
@@ -46,6 +42,7 @@ impl<NumT: Copy + Default, const N: usize> FieldView<NumT, N> for Field<Vector, 
 impl<NumT: Copy + Default, const N: usize> FieldView<NumT, N> for Field<Tensor, NumT, N> {
     type Output = [NumT; N];
 
+    #[allow(clippy::needless_range_loop)] // Intentional for SIMD auto-vectorization
     fn get(&self, idx: usize) -> Self::Output {
         let chunk_idx = idx / super::layout::CHUNK_SIZE;
         let local_idx = idx % super::layout::CHUNK_SIZE;
@@ -61,6 +58,7 @@ impl<NumT: Copy + Default, const N: usize> FieldView<NumT, N> for Field<Tensor, 
 impl<NumT: Copy + Default, const N: usize> FieldView<NumT, N> for Field<SymmTensor, NumT, N> {
     type Output = [NumT; N];
 
+    #[allow(clippy::needless_range_loop)] // Intentional for SIMD auto-vectorization
     fn get(&self, idx: usize) -> Self::Output {
         let chunk_idx = idx / super::layout::CHUNK_SIZE;
         let local_idx = idx % super::layout::CHUNK_SIZE;
