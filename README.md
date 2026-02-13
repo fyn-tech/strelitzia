@@ -1,212 +1,121 @@
 # Strelitzia
 
-A zero-cost abstraction library for geometric computing in Rust.
+A computational physics library in Rust, designed for high-performance simulations with future GPU support.
 
 ## Overview
 
-Strelitzia provides a unified interface for working with geometric primitives (vectors and matrices) across different backend libraries like `nalgebra` and `robust`. The library uses the **adapter pattern** to ensure your core algorithms never depend on specific external crates.
+Strelitzia provides core infrastructure for computational physics applications:
 
-## Key Features
+- **Field storage** for simulation data (positions, velocities, stress fields)
+- **Visualization export** to VTK format for ParaView
+- **Geometry utilities** for mesh generation and Voronoi tessellation
 
-- **Zero-cost abstractions**: All wrappers use `#[repr(transparent)]` and `#[inline(always)]` for zero runtime overhead
-- **Backend independence**: Core code depends only on traits, not concrete implementations
-- **Plug-and-play**: Easy to switch between different math libraries
-- **Type safety**: Compile-time dimension checking with const generics
-- **Interoperability**: Seamless conversion between wrapped and unwrapped types
-- **Functional design**: Operations are free functions, keeping data structures minimal
-- **Operator support**: Full arithmetic operator support (`+`, `-`, `*`, `/`, `+=`, `-=`, `*=`, `/=`)
-- **Optimization library integration**: Native support for argmin optimization framework
+The library is built on `nalgebra` for linear algebra, with a focus on clean interfaces that can evolve to support GPU backends.
 
-## Architecture
+## Modules
 
-### Core Traits
+### Common (`strelitzia::common`)
 
-The library provides a hierarchy of traits for multi-dimensional arrays:
-
-- **`MultiArray`**: Base trait for all geometric objects (rank 0-2)
-  - `type Scalar`: The scalar element type (e.g., `f64`)
-  - `const RANK`: Number of dimensions (0 for scalar, 1 for vector, 2 for matrix)
-  - `fn shape()`: Returns dimensional information as `&[usize]`
-  - `fn len()`: Total number of elements (product of shape)
-
-- **`Vector`**: Trait for rank-1 arrays (vectors)
-  - Extends `MultiArray + Index<usize>` (supports `v[i]` syntax)
-  - `const DIM`: Vector dimension
-  - `fn get_elem(i)`: Get element at index
-  - `fn set_elem(i, value)`: Set element at index
-
-- **`Matrix`**: Trait for rank-2 arrays (matrices)
-  - `const ROWS`, `const COLS`: Matrix dimensions (supports non-square matrices)
-  - `fn get_elem(row, col)`: Get element at position
-  - `fn set_elem(row, col, value)`: Set element at position
-
-### Free Functions
-
-Mathematical operations are provided as free functions that operate on types implementing the traits:
-
-- **Vector operations**:
-  - `dot(&v1, &v2)` - Dot product
-  - `norm_squared(&v)` - Squared Euclidean norm
-  - `zeros::<V>()` - Create zero vector
-
-- **Matrix operations**:
-  - `matrix_zeros::<M>()` - Create zero matrix
-  - `identity::<M>()` - Create identity matrix (square matrices only)
-  - `transpose(&m)` - Transpose matrix
-  - `outer(&v1, &v2)` - Outer product (v1 ⊗ v2)
-  - `matrix_vec_mul(&m, &v)` - Matrix-vector multiplication (M × v)
-  - `matrix_mul(&m1, &m2)` - General matrix multiplication (supports non-square matrices)
-
-This design keeps the traits minimal and makes it easy to add new operations without modifying the traits.
-
-### Adapters
-
-Adapters provide zero-cost wrappers around external crate types:
-
-- **`RobustCoord2D<T>`**: Wraps `robust::Coord<T>` (2D vector)
-- **`RobustCoord3D<T>`**: Wraps `robust::Coord3D<T>` (3D vector)
-- **`NalgebraVec<T, N>`**: Wraps `nalgebra::SVector<T, N>` (N-dimensional vector)
-- **`NalgebraMat<T, R, C>`**: Wraps `nalgebra::SMatrix<T, R, C>` (R×C matrix)
-
-Type aliases for common sizes:
-- `NalgebraVec2`, `NalgebraVec3`, `NalgebraVec4`
-- `NalgebraMat2`, `NalgebraMat3`, `NalgebraMat4`
-
-### Operator Support
-
-All vector and matrix types support standard arithmetic operators:
-
-- **Binary operators**: `v1 + v2`, `v1 - v2`, `scalar * v`, `v / scalar`
-- **Compound assignment**: `v1 += v2`, `v1 -= v2`, `v *= scalar`, `v /= scalar`
-- **Negation**: `-v`
-- **Indexing**: `v[i]` for vectors, `m[(row, col)]` for matrices
-
-Note: Only `scalar * v` is supported (not `v * scalar`) to maintain consistency with mathematical notation.
-
-### Optimization Integration
-
-Strelitzia provides native integration with the [argmin](https://argmin-rs.org/) optimization framework through `argmin-math` trait implementations:
+Crate-wide foundational types, starting with the precision-controlled scalar:
 
 ```rust
-use strelitzia::prelude::*;
-use argmin::core::{CostFunction, Executor};
-use argmin::solver::gradientdescent::SteepestDescent;
-
-// Your wrapper types automatically work with argmin solvers!
-let init_param = NalgebraVec3::from(nalgebra::Vector3::new(1.0, 2.0, 3.0));
-// Use with any argmin solver...
+use strelitzia::common::Real;
+// Real is f64 by default, or f32 with the "single-precision" feature
 ```
 
-Supported `argmin-math` traits:
-- `ArgminDot`, `ArgminAdd`, `ArgminSub`, `ArgminMul`, `ArgminDiv`
-- `ArgminL1Norm`, `ArgminL2Norm`
-- `ArgminZero`, `ArgminSignum`, `ArgminMinMax`
+### MultiArray (`strelitzia::multiarray`)
 
-## Usage
-
-### Basic Example
+The mathematical type system -- all vectors, matrices, and tensors are aliases of `MultiArray<T, S, B>`.
 
 ```rust
-use strelitzia::prelude::*;
+use strelitzia::multiarray::{Vector3, Matrix3};
+use strelitzia::multiarray::linalg::{VectorOps, CrossProduct};
 
-// Create vectors using different backends
-let p1 = RobustCoord2D::new(3.0, 4.0);
-let p2 = RobustCoord2D::new(1.0, 2.0);
+let position = Vector3::new(1.0, 2.0, 3.0);
+let rotation = Matrix3::identity();
 
-// Use free functions for operations
-println!("Dot product: {}", dot(&p1, &p2));        // 11
-println!("Norm squared: {}", norm_squared(&p1));   // 25
+// Full operator support
+let velocity = Vector3::new(0.1, 0.0, 0.0);
+let new_pos = position + 0.01 * velocity;
 
-// Use operators
-let p3 = p1 + p2;                    // Vector addition
-let p4 = 2.0 * p1;                   // Scalar multiplication
-let p5 = p1[0];                      // Index access
-
-// Still can use robust predicates directly
-use robust::{orient2d, Coord};
-let a = Coord { x: 0.0, y: 0.0 };
-let b = Coord { x: 1.0, y: 0.0 };
-let c = Coord { x: 0.0, y: 1.0 };
-let orientation = orient2d(a, b, c); // 1 (counterclockwise)
+// Domain operations via extension traits
+let a = Vector3::new(1.0, 0.0, 0.0);
+let b = Vector3::new(0.0, 1.0, 0.0);
+let dot = a.dot(&b);       // 0.0
+let cross = a.cross(&b);   // (0, 0, 1)
 ```
 
-### Generic Algorithms
+### Fields (`strelitzia::fields`)
 
-Write algorithms that work with **any** backend:
+Collection containers for simulation data, with zero-copy solver interop.
 
 ```rust
-use strelitzia::prelude::*;
+use strelitzia::common::Real;
+use strelitzia::multiarray::Vector3;
+use strelitzia::fields::{Vector3Field, ScalarField, SolverInterop};
 
-/// Compute Euclidean distance between two vectors.
-/// Works with ANY type that implements the Vector trait!
-fn compute_distance<V>(a: &V, b: &V) -> f64
-where
-    V: Vector<Scalar = f64>,
-{
-    let mut sum = 0.0;
-    for i in 0..V::DIM {
-        let diff = a[i] - b[i];  // Can use indexing!
-        sum += diff * diff;
-    }
-    sum.sqrt()
-}
+let mut positions = Vector3Field::new();
+positions.push(Vector3::new(1.0, 2.0, 3.0));
+positions.push(Vector3::new(4.0, 5.0, 6.0));
 
-// Works with RobustCoord2D
-let p1 = RobustCoord2D::new(0.0, 0.0);
-let p2 = RobustCoord2D::new(3.0, 4.0);
-let dist1 = compute_distance(&p1, &p2); // 5.0
-
-// Also works with NalgebraVec3
-let n1 = NalgebraVec3::from(nalgebra::Vector3::new(0.0, 0.0, 0.0));
-let n2 = NalgebraVec3::from(nalgebra::Vector3::new(1.0, 2.0, 2.0));
-let dist2 = compute_distance(&n1, &n2); // 3.0
+// Zero-copy reinterpretation as flat slice for Ax = b solvers
+let x: &[Real] = positions.as_flat_slice();
+assert_eq!(x, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 ```
 
-### Working with Matrices
+**Available types:**
+
+| Module | Type | Description |
+|--------|------|-------------|
+| `common` | `Real` | `f64` (default) or `f32` with `single-precision` feature |
+| `multiarray` | `Vector2`, `Vector3`, `Vector4` | Static vector types |
+| `multiarray` | `Matrix2`, `Matrix3`, `Matrix4` | Static matrix types |
+| `multiarray` | `Point2`, `Point3`, `Point4` | Semantic aliases for positions |
+| `fields` | `ScalarField` | Collection of `Real` values |
+| `fields` | `Vector3Field` | Collection of `Vector3` values |
+| `fields` | `Matrix3Field` | Collection of `Matrix3` values |
+
+### Visualiser (`strelitzia::visualiser`)
+
+Export simulation data to VTK XML format for visualization in ParaView.
 
 ```rust
-use strelitzia::prelude::*;
+use strelitzia::visualiser::{write_vtu, CellType, Encoding, FieldArray};
 
-// Create identity matrix using free function
-let mat = identity::<NalgebraMat3<f64>>();
+// Define mesh coordinates
+let coords = vec![0.0, 0.0, 1.0, 0.0, 0.5, 1.0];
 
-// Access elements
-let elem = mat.get_elem(0, 0).unwrap(); // 1.0
-let elem2 = mat[(0, 0)];                // Also via indexing!
+// Define cells (triangles)
+let cells = vec![(CellType::Triangle, vec![0, 1, 2])];
 
-// Transpose using free function
-let transposed = transpose(&mat);
+// Add field data
+let temperature = FieldArray::from_slice("temperature", &[100.0, 150.0, 120.0], 1);
 
-// Matrix-vector multiplication
-let v = NalgebraVec3::from(nalgebra::Vector3::new(1.0, 2.0, 3.0));
-let result: NalgebraVec3<f64> = matrix_vec_mul(&mat, &v);
-
-// Matrix multiplication (supports non-square matrices)
-let m1: NalgebraMat<f64, 3, 2> = matrix_zeros();
-let m2: NalgebraMat<f64, 2, 4> = matrix_zeros();
-let m3: NalgebraMat<f64, 3, 4> = matrix_mul(&m1, &m2);
-
-// Outer product
-let a = NalgebraVec3::from(nalgebra::Vector3::new(1.0, 2.0, 3.0));
-let b = NalgebraVec2::from(nalgebra::Vector2::new(4.0, 5.0));
-let mat: NalgebraMat<f64, 3, 2> = outer(&a, &b);
+write_vtu::<2>(
+    "output.vtu",
+    Encoding::Ascii,
+    &coords,
+    &cells,
+    &[temperature],  // Point data
+    &[],             // Cell data
+).unwrap();
 ```
 
-### Conversion Between Types
+### Geometry (`strelitzia::geometry`)
+
+Geometric utilities for mesh generation.
 
 ```rust
-use strelitzia::prelude::*;
-use robust::Coord;
+use strelitzia::geometry::{Point2D, generate_voronoi};
 
-// Create from underlying type
-let coord = Coord { x: 1.0, y: 2.0 };
-let wrapped = RobustCoord2D::from(coord);
+let points: Vec<Point2D> = vec![
+    (0.0, 0.0),
+    (1.0, 0.0),
+    (0.5, 1.0),
+];
 
-// Convert back to underlying type
-let unwrapped: Coord<f64> = wrapped.into();
-
-// Access underlying type
-let coord_ref = wrapped.as_coord();
+// Generate Voronoi tessellation, optionally save visualization
+let trigen = generate_voronoi(&points, Some("voronoi.svg")).unwrap();
 ```
 
 ## Project Structure
@@ -214,156 +123,116 @@ let coord_ref = wrapped.as_coord();
 ```
 strelitzia/
 ├── src/
+│   ├── common.rs           # Crate-wide types (Real)
+│   ├── multiarray/
+│   │   ├── mod.rs          # Module exports
+│   │   ├── types.rs        # MultiArray struct, Shape, RawStorage
+│   │   ├── traits.rs       # MultiArrayOps, DenseMultiArrayOps, NumericMultiArrayOps
+│   │   ├── operators.rs    # Blanket operator impls, matrix multiplication
+│   │   ├── aliases.rs      # Type aliases + constructors/accessors
+│   │   └── linalg.rs       # Extension traits (VectorOps, CrossProduct, etc.)
+│   ├── fields/
+│   │   ├── mod.rs          # Module exports
+│   │   ├── storage.rs      # Field<T>, FieldElement, SolverInterop
+│   │   ├── ops.rs          # Field compound assignment operators
+│   │   └── cast.rs         # Legacy zero-copy slice utilities
 │   ├── geometry/
 │   │   ├── mod.rs
-│   │   └── multi_array.rs       # Core traits: MultiArray, Vector, Matrix
-│   ├── adapters/
+│   │   └── cvt.rs          # Voronoi tessellation
+│   ├── visualiser/
 │   │   ├── mod.rs
-│   │   ├── robust_adapter.rs    # RobustCoord2D, RobustCoord3D
-│   │   ├── nalgebra_adapter.rs  # NalgebraVec, NalgebraMat
-│   │   └── argmin_integration.rs # argmin-math trait implementations
-│   ├── prelude.rs               # Convenient imports
+│   │   ├── field_export.rs     # Field-to-VTK conversion
+│   │   ├── paraview_writer.rs  # VTK XML export
+│   │   ├── vtk_types.rs        # VTK type definitions
+│   │   └── encoding.rs         # ASCII/Base64 encoding
+│   ├── prelude.rs          # Convenient imports
 │   ├── lib.rs
-│   └── main.rs                  # Demo examples
+│   └── main.rs
+├── tests/
+│   ├── fields_tests.rs            # Field module tests
+│   ├── fields_ops_tests.rs        # Field operations tests
+│   ├── fields_ops_operators_tests.rs # Operator overload tests
+│   ├── fields_vtk_tests.rs        # Field VTK export tests
+│   └── visualiser_tests.rs        # VTK writer tests
 └── Cargo.toml
 ```
 
-## Design Principles
+## Features
 
-### 1. Zero-Cost Abstractions
+### Precision Control
 
-All adapters use `#[repr(transparent)]` to ensure the wrapper has the same memory layout as the wrapped type:
+Use the `single-precision` feature for `f32` instead of `f64`:
 
-```rust
-#[repr(transparent)]
-pub struct RobustCoord2D<T: Into<f64> + Copy>(pub Coord<T>);
+```toml
+[dependencies]
+strelitzia = { version = "0.1", features = ["single-precision"] }
 ```
 
-Combined with `#[inline(always)]`, the wrapper completely disappears at runtime - there is **zero** performance overhead.
+This changes the `Real` type alias and all field storage accordingly.
 
-### 2. Separation of Data and Operations
-
-The library follows a functional design philosophy:
-
-- **Traits** define only fundamental data access operations (get/set elements)
-- **Free functions** provide mathematical operations (dot product, transpose, etc.)
-
-This separation keeps the traits minimal and makes it easier to add new operations without modifying the traits. It's similar to how Rust's standard library works (e.g., `Iterator` trait with free functions for operations).
-
-### 3. Dependency Inversion
-
-The architecture follows the dependency inversion principle:
-
-- **Core algorithms** depend only on traits (`MultiArray`, `Vector`, `Matrix`)
-- **Adapters** depend on both traits and external crates
-- **External crates** are never imported in core algorithms
-
-This means you can:
-- Switch backends by changing which adapter you use
-- Add new backends without modifying existing code
-- Test algorithms with mock implementations
-
-### 4. Compile-Time Guarantees
-
-Using const generics for compile-time dimension checking:
-
-```rust
-pub struct NalgebraVec<T, const N: usize>(pub na::SVector<T, N>);
-
-impl<T, const N: usize> Vector for NalgebraVec<T, N> {
-    const DIM: usize = N;
-    // Dimension is known at compile time!
-}
-```
-
-This prevents dimension mismatches at compile time rather than runtime.
-
-## Running the Examples
+## Running Tests
 
 ```bash
-# Build the project
-cargo build
+# Run all tests
+cargo test
 
-# Run the demo
-cargo run
+# Run specific module tests
+cargo test fields
+cargo test visualiser
+
+# Run with output
+cargo test -- --nocapture
 ```
-
-The demo showcases:
-- Using `RobustCoord2D` and `RobustCoord3D` with Vector trait
-- Using `NalgebraVec3` and `NalgebraMat3` with Vector/Matrix traits
-- Generic `compute_distance()` function that works with any Vector implementation
-- Direct use of `robust` predicates alongside wrapped types
-
-## Implementation Details
-
-### Supported Operations
-
-**Vector trait methods (data access):**
-- `v[i]` - Index access (via `Index` trait)
-- `get_elem(i)` - Get element at index (returns `Option`)
-- `set_elem(i, value)` - Set element at index
-
-**Vector operators:**
-- `v1 + v2`, `v1 - v2` - Vector addition/subtraction
-- `scalar * v` - Scalar multiplication
-- `v / scalar` - Scalar division
-- `v1 += v2`, `v1 -= v2`, `v *= scalar`, `v /= scalar` - Compound assignment
-- `-v` - Negation
-
-**Vector free functions:**
-- `zeros::<V>()` - Create zero vector
-- `dot(&v1, &v2)` - Dot product
-- `norm_squared(&v)` - Squared Euclidean norm (avoids sqrt for performance)
-
-**Matrix trait methods (data access):**
-- `m[(row, col)]` - Index access (via `Index` trait)
-- `get_elem(row, col)` - Get element at position (returns `Option`)
-- `set_elem(row, col, value)` - Set element at position
-
-**Matrix operators:**
-- `m1 + m2`, `m1 - m2` - Matrix addition/subtraction
-- `scalar * m` - Scalar multiplication
-- `m / scalar` - Scalar division
-- `m1 += m2`, `m1 -= m2`, `m *= scalar`, `m /= scalar` - Compound assignment
-- `-m` - Negation
-
-**Matrix free functions:**
-- `matrix_zeros::<M>()` - Create zero matrix
-- `identity::<M>()` - Create identity matrix (square matrices only)
-- `transpose(&m)` - Transpose the matrix
-- `outer(&v1, &v2)` - Outer product (v1 ⊗ v2)
-- `matrix_vec_mul(&m, &v)` - Matrix-vector multiplication (M × v)
-- `matrix_mul(&m1, &m2)` - General matrix multiplication (supports non-square matrices)
-
-### Current Limitations
-
-- Rank-3+ tensors are not yet supported (by design for simplicity)
-- Some advanced operations not yet implemented:
-  - Cross product for 3D vectors
-  - Matrix determinant and inverse
-  - Eigenvalue/eigenvector computation
-  - QR, SVD, and other decompositions
-
-These limitations can be easily addressed by extending the free functions as needed.
 
 ## Dependencies
 
-- `nalgebra` (0.34.1): Comprehensive linear algebra library
-- `robust` (1.2.0): Adaptive precision floating-point arithmetic for computational geometry
-- `num-traits` (0.2): Numeric trait abstractions
-- `argmin` (0.11.0): Mathematical optimization framework
-- `argmin-math` (0.5.1): Math backend abstraction for argmin
+- **nalgebra** (0.34): Linear algebra types and operations
+- **num-traits** (0.2): Generic numeric traits (`Zero`, `One`)
+- **bytemuck** (1.24): Safe byte reinterpretation for VTK encoding
+- **tritet** (3.0): Delaunay triangulation and Voronoi tessellation
+- **plotpy** (1.19): SVG visualisation for geometry output
 
-## Future Extensions
+## Roadmap
 
-The architecture is designed to be easily extensible:
+### Current Status
 
-1. **Add more operations**: Cross product, determinant, matrix inverse, decompositions, etc.
-2. **Add more adapters**: `glam`, `cgmath`, `ultraviolet`, `ndarray`, `sprs`, etc.
-3. **Add rank-3 tensors**: Extend `MultiArray` to support higher-rank tensors
-4. **Add SIMD support**: Leverage SIMD through backend libraries
-5. **Expand argmin integration**: Add implementations for matrix types and other wrapper types
+- ✅ Field storage with nalgebra backend
+- ✅ Zero-copy solver interface
+- ✅ Field operations (arithmetic operators, fill, resize, reductions)
+- ✅ VTK export for ParaView
+- ✅ PVD time series support
+- ✅ Voronoi tessellation
+
+### Planned Features
+
+- **Parallel iteration**: Rayon-based `par_iter()` for multi-threaded processing
+- **GPU support**: wgpu/CUDA backends for GPU computation
+- **Extended math types**: Symmetric matrices, more dimension variants
+
+## Design Philosophy
+
+### Simple First, Optimize Later
+
+The library uses straightforward `Vec<nalgebra::VectorN>` storage rather than complex data layouts. This provides:
+
+- **Immediate productivity**: Standard patterns, full nalgebra API
+- **Easy debugging**: Data is inspectable and predictable
+- **Future flexibility**: Interface-based design allows storage optimization later
+
+### Interface Stability
+
+Fields expose a trait-based interface so storage can evolve:
+
+- Current: `Vec<Vector3>` (simple, compatible with nalgebra)
+- Future: SoA layout for SIMD optimization
+- Future: GPU buffers for compute shaders
+
+Your algorithms work with the interface, not the implementation.
+
+### Zero-Copy Where It Matters
+
+The `as_flat_slice()` methods provide zero-copy access for solver interfaces, avoiding unnecessary data copies for billion-element meshes.
 
 ## License
 
-This project is part of the Strelitzia computational geometry framework.
+This project is part of the Strelitzia computational physics framework.

@@ -8,20 +8,8 @@ default = []
 single-precision = []  # Use f32 instead of f64 for Real type
 
 [dependencies]
-argmin = "0.11.0"
-argmin-math = "0.5.1"
 bytemuck = "1.24.0"
-csgrs = "0.20.1"
-delaunator = "1.0.2"
-faer = "0.23.2"
-glam = "0.30.9"
-mint = "0.5.9"
 nalgebra = "0.34.1"
-ndarray-linalg = "0.18.0"
 num-traits = "0.2"
-plotpy = "1.13.0"
-rlst = "0.2.1"
-robust = "1.2.0"
-spade = "2.15.0"
-sprs = "0.11.4"
-tritet = "1.1.0"
+plotpy = "1.19.0"
+tritet = "3.0.2"

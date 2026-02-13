@@ -1,14 +1,16 @@
-//! Strelitzia - A zero-cost abstraction library for geometric computing.
+//! Strelitzia -- a computational physics library in Rust.
 //!
-//! This library provides a unified interface for working with geometric primitives
-//! (scalars, vectors, matrices) across different backend libraries like `nalgebra`
-//! and `robust`.
+//! Provides core infrastructure for high-performance simulations:
+//!
+//! - [`common`] -- crate-wide types (`Real` precision alias)
+//! - [`multiarray`] -- mathematical type system (`Vector3`, `Matrix3`, etc.)
+//! - [`fields`] -- simulation data collections with zero-copy solver interop
+//! - [`geometry`] -- mesh generation and Voronoi tessellation
+//! - [`visualiser`] -- VTK export for ParaView visualisation
 
+pub mod common;
 pub mod fields;
 pub mod geometry;
+pub mod multiarray;
 pub mod prelude;
 pub mod visualiser;
-
-pub fn run() {
-    println!("Strelitzia is running...");
-}

@@ -80,10 +80,42 @@ write_vtu::<_, 3>("mesh.vtu", &points, Some(&conn), Some(&types), &[temp_field, 
 - `Encoding::Ascii`: Human-readable (~40% larger)
 - `Encoding::Base64`: Binary (recommended)
 
+## Time Series (PVD Collections)
+
+For time-dependent simulations, create a ParaView Data (.pvd) collection file:
+
+```rust
+use strelitzia::visualiser::write_pvd;
+
+// Write multiple VTU files for different time steps
+let mut pvd_entries = Vec::new();
+
+for (step, time) in simulation_steps.enumerate() {
+    let vtu_path = format!("output_{:04}.vtu", step);
+    
+    // Write VTU file for this time step
+    write_vtu::<_, 3>(&vtu_path, &points, Some(&conn), Some(&types), &[], &[], Encoding::Base64)?;
+    
+    // Add to PVD collection
+    pvd_entries.push((time, vtu_path));
+}
+
+// Write PVD collection file
+write_pvd("simulation.pvd", &pvd_entries)?;
+```
+
+Open `simulation.pvd` in ParaView to:
+- View all time steps
+- Animate through time
+- Export animations
+
+See `examples/time_series_export.rs` for a complete example.
+
 ## Notes
 
 - 2D points automatically padded to 3D (VTK requirement)
 - Point clouds auto-generate VTK_VERTEX cells
 - Uses `bytemuck::Pod` for zero-cost type conversions
-- See `examples/paraview_demo.rs` for more examples
+- See `examples/paraview_demo.rs` for basic examples
+- See `examples/time_series_export.rs` for time series examples
 

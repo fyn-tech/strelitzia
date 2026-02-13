@@ -114,6 +114,79 @@ where
     )
 }
 
+/// Write ParaView Data (.pvd) collection file for time series.
+///
+/// Creates an XML file that references multiple .vtu files with timesteps,
+/// enabling time series visualization and animation in ParaView.
+///
+/// # Arguments
+/// - `path`: Output .pvd file path
+/// - `entries`: Vector of (timestep, relative_vtu_path) tuples
+///
+/// Paths should be relative to the .pvd file location for portability.
+/// Absolute paths are also supported for cross-directory references.
+///
+/// # Example
+///
+/// ```no_run
+/// use strelitzia::visualiser::write_pvd;
+///
+/// let entries = vec![
+///     (0.0, "output_0000.vtu"),
+///     (0.1, "output_0001.vtu"),
+///     (0.2, "output_0002.vtu"),
+/// ];
+/// write_pvd("simulation.pvd", &entries)?;
+/// # Ok::<(), std::io::Error>(())
+/// ```
+///
+/// # PVD Format
+///
+/// The generated file follows the ParaView Data Collection format:
+///
+/// ```xml
+/// <?xml version="1.0"?>
+/// <VTKFile type="Collection" version="0.1">
+///   <Collection>
+///     <DataSet timestep="0.0" file="output_0000.vtu"/>
+///     <DataSet timestep="0.1" file="output_0001.vtu"/>
+///   </Collection>
+/// </VTKFile>
+/// ```
+pub fn write_pvd(
+    path: impl AsRef<Path>,
+    entries: &[(f64, impl AsRef<str>)],
+) -> io::Result<()> {
+    let mut file = File::create(path)?;
+    
+    writeln!(file, r#"<?xml version="1.0"?>"#)?;
+    writeln!(file, r#"<VTKFile type="Collection" version="0.1">"#)?;
+    writeln!(file, "  <Collection>")?;
+    
+    for (timestep, vtu_path) in entries {
+        // XML escape the file path
+        let escaped_path = vtu_path.as_ref()
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;");
+        
+        // Format timestep to always show decimal point
+        writeln!(
+            file,
+            r#"    <DataSet timestep="{}" file="{}"/>"#,
+            timestep,
+            escaped_path
+        )?;
+    }
+    
+    writeln!(file, "  </Collection>")?;
+    writeln!(file, "</VTKFile>")?;
+    
+    Ok(())
+}
+
 /// Internal writer implementation.
 struct VtkWriter<'a> {
     file: &'a mut File,
@@ -146,7 +219,37 @@ impl<'a> VtkWriter<'a> {
 
         // Determine cell data (auto-infer vertices if not provided)
         let (conn, types): (Vec<Vec<usize>>, Vec<VTKCellType>) = match (connectivity, cell_types) {
-            (Some(c), Some(t)) => (c.to_vec(), t.iter().map(|&ct| ct.into()).collect()),
+            (Some(c), Some(t)) => {
+                // Validate connectivity and cell_types have same length
+                if c.len() != t.len() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!(
+                            "connectivity length ({}) must match cell_types length ({})",
+                            c.len(),
+                            t.len()
+                        ),
+                    ));
+                }
+                
+                // Validate all connectivity indices are within bounds
+                let num_points = points.len();
+                for (cell_idx, cell) in c.iter().enumerate() {
+                    for &point_idx in cell {
+                        if point_idx >= num_points {
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                format!(
+                                    "Connectivity index {} in cell {} is out of bounds (max: {})",
+                                    point_idx, cell_idx, num_points - 1
+                                ),
+                            ));
+                        }
+                    }
+                }
+                
+                (c.to_vec(), t.iter().map(|&ct| ct.into()).collect())
+            }
             (None, None) => {
                 // Auto-generate vertex cells
                 let vertex_conn: Vec<Vec<usize>> = (0..points.len()).map(|i| vec![i]).collect();
@@ -157,6 +260,36 @@ impl<'a> VtkWriter<'a> {
         };
 
         let num_cells = conn.len();
+        
+        // Validate point field lengths
+        for field in point_fields {
+            let expected_bytes = points.len() * field.num_components * std::mem::size_of::<f64>();
+            let actual_bytes = field.data.len();
+            if actual_bytes != expected_bytes {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "Point field '{}' has wrong length: expected {} bytes ({} points × {} components × {} bytes/f64), got {} bytes",
+                        field.name, expected_bytes, points.len(), field.num_components, std::mem::size_of::<f64>(), actual_bytes
+                    ),
+                ));
+            }
+        }
+        
+        // Validate cell field lengths
+        for field in cell_fields {
+            let expected_bytes = num_cells * field.num_components * std::mem::size_of::<f64>();
+            let actual_bytes = field.data.len();
+            if actual_bytes != expected_bytes {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "Cell field '{}' has wrong length: expected {} bytes ({} cells × {} components × {} bytes/f64), got {} bytes",
+                        field.name, expected_bytes, num_cells, field.num_components, std::mem::size_of::<f64>(), actual_bytes
+                    ),
+                ));
+            }
+        }
 
         // Write XML header
         writeln!(self.file, r#"<?xml version="1.0"?>"#)?;
@@ -280,12 +413,8 @@ impl<'a> VtkWriter<'a> {
                     let num_points = points.len();
                     let mut coords_3d = Vec::with_capacity(num_points * 3);
                     for i in 0..num_points {
-                        for d in 0..DIM {
-                            coords_3d.push(coords[i * DIM + d]);
-                        }
-                        for _ in DIM..3 {
-                            coords_3d.push(0.0);
-                        }
+                        coords_3d.extend_from_slice(&coords[i * DIM..(i + 1) * DIM]);
+                        coords_3d.extend(std::iter::repeat_n(0.0, 3 - DIM));
                     }
                     self.write_base64_f64(&coords_3d)?;
                 }
