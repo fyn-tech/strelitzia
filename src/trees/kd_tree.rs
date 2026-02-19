@@ -5,12 +5,42 @@ use std::fmt::Debug;
 
 
 // ============================================================================
+// The node struct
+// ============================================================================
+
+
+#[derive(Debug, Clone)]
+pub struct Node<T: Copy + Clone + PartialOrd + Debug + Default + 'static> {
+  pub value: T,
+  pub i_left_child: Option<u32>,
+  pub i_right_child: Option<u32>,
+  pub leaves: Option<Vec<u32>>,
+}
+
+impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static> Node<T> {
+  pub fn new() -> Self {
+    Self { value: T::default(), i_left_child: None, i_right_child: None, leaves: None }
+  }
+
+  pub fn is_leaf(self) -> bool {
+    self.i_left_child.is_none() && self.i_right_child.is_none()  
+  }
+
+  pub fn leaves(mut self, leaf_indexes: &Vec<u32>) -> Self {
+    self.leaves = Some(leaf_indexes.clone());
+    self
+  }
+}
+
+// ============================================================================
 // The core struct
 // ============================================================================
 
+
 #[derive(Debug, Clone)]
-pub struct KDTree<T: Copy + Clone + PartialOrd + Debug  + 'static, const D: usize> {
+pub struct KDTree<T: Copy + Clone + PartialOrd + Debug + Default + 'static, const D: usize> {
   pub depth: u32,
+  pub nodes: Vec<Node<T> >,
   pub leaf_data: Vec<Vector<T, D> >,
 }
 
@@ -19,11 +49,12 @@ pub struct KDTree<T: Copy + Clone + PartialOrd + Debug  + 'static, const D: usiz
 // Methods
 // ============================================================================
 
-impl<T: Copy + Clone + PartialOrd + Debug + 'static, const D: usize> KDTree<T, D> {
+impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static, const D: usize> KDTree<T, D> {
 
 pub fn new() -> Self {
   Self {
     depth: 0,
+    nodes: vec![],
     leaf_data: vec![],
   }
 } 
@@ -56,6 +87,9 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
 
   if depth == max_depth || points.len() == 1 {
     // end recursion  
+    self.nodes.push(
+      Node::new().leaves(&maybe_sorted_lists.unwrap().iter().filter(|vec| vec.iter().filter(|tuple| tuple.1).collect() ).collect())
+    );
     return self;
   }
   
@@ -86,8 +120,8 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
   }
 
 
-  self.build(points, max_depth, Some(left_sorted), Some(depth + 1));
-  self.build(points, max_depth, Some(right_sorted), Some(depth + 1));
+  // self.build(points, max_depth, Some(left_sorted), Some(depth + 1));
+  // self.build(points, max_depth, Some(right_sorted), Some(depth + 1));
 
   self
 
