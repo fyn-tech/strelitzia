@@ -1,12 +1,17 @@
 #!/bin/bash
 
 # Extract the container name from the --name runtime argument in devcontainer.json
-CONTAINER_NAME=$(jq -r '.runArgs | (index("--name") + 1) as $i | .[$i]' "$(dirname "$0")/../.devcontainer/devcontainer.json")
+CONTAINER_NAME=$(jq -r '.runArgs | (index("--name") + 1) as $i | .[$i] // empty' "$(dirname "$0")/devcontainer.json")
 
-# If the container is running, open a bash shell in the container in interactive mode.
-if [ -n "$CONTAINER_NAME" ]; then
-  docker exec -it "$CONTAINER_NAME" bash
-  exit 0
-else
-  echo "No devcontainer found."
+if [ -z "$CONTAINER_NAME" ]; then
+  echo "Error: No --name found in devcontainer.json runArgs."
+  exit 1
 fi
+
+# Check the container is actually running
+if ! docker inspect --format='{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null | grep -q true; then
+  echo "Error: Container '$CONTAINER_NAME' is not running."
+  exit 1
+fi
+
+docker exec -it "$CONTAINER_NAME" bash

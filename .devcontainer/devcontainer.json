@@ -24,6 +24,7 @@
       }
     }
   },
+  "runArgs": ["--name", "strelitzia-dev"],
   "forwardPorts": [3000, 8000, 8080],
   "postCreateCommand": "echo 'Verifying Rust installation...' && rustc --version && cargo --version && echo 'Post-create command completed.'",
   "remoteUser": "vscode",
