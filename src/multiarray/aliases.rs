@@ -3,7 +3,7 @@
 //! Users interact with these aliases rather than `MultiArray<T, S, B>` directly.
 
 use super::types::*;
-use crate::common::Real;
+use crate::common::{Int, Real, UInt};
 use nalgebra as na;
 
 // ============================================================================
@@ -13,8 +13,7 @@ use nalgebra as na;
 /// Static vector type (stack-allocated, `Copy`).
 pub type Vector<T, const N: usize> = MultiArray<T, Rank1<N>, na::SVector<T, N>>;
 /// Static matrix type (stack-allocated, `Copy`).
-pub type Matrix<T, const R: usize, const C: usize> =
-    MultiArray<T, Rank2<R, C>, na::SMatrix<T, R, C>>;
+pub type Matrix<T, const R: usize, const C: usize> = MultiArray<T, Rank2<R, C>, na::SMatrix<T, R, C>>;
 
 /// Dynamic vector type (heap-allocated, NOT `Copy`).
 pub type DynVector<T> = MultiArray<T, DynRank1, na::DVector<T>>;
@@ -29,65 +28,88 @@ pub type Matrix2 = Matrix<Real, 2, 2>;
 pub type Matrix3 = Matrix<Real, 3, 3>;
 pub type Matrix4 = Matrix<Real, 4, 4>;
 
-// Geometric point aliases (same type as VectorN, intent-explicit naming)
-pub type Point2 = Vector2;
-pub type Point3 = Vector3;
-pub type Point4 = Vector4;
+// Signed integer aliases (suffix: i)
+pub type Vector2i = Vector<Int, 2>;
+pub type Vector3i = Vector<Int, 3>;
+pub type Vector4i = Vector<Int, 4>;
+pub type Matrix2i = Matrix<Int, 2, 2>;
+pub type Matrix3i = Matrix<Int, 3, 3>;
+pub type Matrix4i = Matrix<Int, 4, 4>;
+
+// Unsigned integer aliases (suffix: u)
+pub type Vector2u = Vector<UInt, 2>;
+pub type Vector3u = Vector<UInt, 3>;
+pub type Vector4u = Vector<UInt, 4>;
+pub type Matrix2u = Matrix<UInt, 2, 2>;
+pub type Matrix3u = Matrix<UInt, 3, 3>;
+pub type Matrix4u = Matrix<UInt, 4, 4>;
+
+// Boolean aliases (suffix: b) -- component-wise masks, 1 byte per component
+pub type Vector2b = Vector<bool, 2>;
+pub type Vector3b = Vector<bool, 3>;
+pub type Vector4b = Vector<bool, 4>;
+pub type Matrix2b = Matrix<bool, 2, 2>;
+pub type Matrix3b = Matrix<bool, 3, 3>;
+pub type Matrix4b = Matrix<bool, 4, 4>;
+
+// Geometric point aliases (same type as VectorN, semantic naming)
+pub type Point<T, const N: usize> = Vector<T, N>;
+pub type Point2 = Point<Real, 2>;
+pub type Point3 = Point<Real, 3>;
+pub type Point4 = Point<Real, 4>;
+
+// Index aliases (same type as PointN, semantic naming)
+pub type MultiIndex<const N: usize> = Point<usize, N>;
+pub type MultiIndex2 = MultiIndex<2>;
+pub type MultiIndex3 = MultiIndex<3>;
+pub type MultiIndex4 = MultiIndex<4>;
+
+// Standard basis vectors (compile-time constants)
+pub const X_AXIS2: Vector2 = Vector2::new(1.0, 0.0);
+pub const Y_AXIS2: Vector2 = Vector2::new(0.0, 1.0);
+pub const X_AXIS3: Vector3 = Vector3::new(1.0, 0.0, 0.0);
+pub const Y_AXIS3: Vector3 = Vector3::new(0.0, 1.0, 0.0);
+pub const Z_AXIS3: Vector3 = Vector3::new(0.0, 0.0, 1.0);
+
+// Convenience aliases (default to 3D)
+pub const X_AXIS: Vector3 = X_AXIS3;
+pub const Y_AXIS: Vector3 = Y_AXIS3;
+pub const Z_AXIS: Vector3 = Z_AXIS3;
 
 // ============================================================================
 // Dimension-specific constructors and accessors
 // ============================================================================
 
-// --- Vector2 ---
-impl<T: na::Scalar + Copy> MultiArray<T, Rank1<2>, na::SVector<T, 2>> {
-    pub fn new(x: T, y: T) -> Self {
-        let inner: na::SVector<T, 2> = na::SVector::from_column_slice(&[x, y]);
-        Self::from_inner(inner)
-    }
-    pub fn x(&self) -> T {
-        self.data[(0, 0)]
-    }
-    pub fn y(&self) -> T {
-        self.data[(1, 0)]
-    }
+// Compile-time code generator for per-dimension `new()` and named accessors.
+// Needed because Rust lacks variadic generics (C++ parameter packs), so we
+// cannot write one generic `impl` for different argument counts.
+//
+// Example expansion -- impl_vector_new_and_accessors!(3, 0 => x, 1 => y, 2 => z):
+//
+//   impl<T: na::Scalar + Copy> MultiArray<T, Rank1<3>, na::SVector<T, 3>> {
+//       pub const fn new(x: T, y: T, z: T) -> Self { ... }
+//       pub fn x(&self) -> T { self.data[(0, 0)] }
+//       pub fn y(&self) -> T { self.data[(1, 0)] }
+//       pub fn z(&self) -> T { self.data[(2, 0)] }
+//   }
+macro_rules! impl_vector_new_and_accessors {
+    ($dim:literal, $($idx:literal => $name:ident),+) => {
+        impl<T: na::Scalar + Copy> MultiArray<T, Rank1<$dim>, na::SVector<T, $dim>> {
+            pub const fn new($($name: T),+) -> Self {
+                Self::from_inner(na::SVector::<T, $dim>::new($($name),+))
+            }
+            $(
+                pub fn $name(&self) -> T {
+                    self.data[($idx, 0)]
+                }
+            )+
+        }
+    };
 }
 
-// --- Vector3 ---
-impl<T: na::Scalar + Copy> MultiArray<T, Rank1<3>, na::SVector<T, 3>> {
-    pub fn new(x: T, y: T, z: T) -> Self {
-        let inner: na::SVector<T, 3> = na::SVector::from_column_slice(&[x, y, z]);
-        Self::from_inner(inner)
-    }
-    pub fn x(&self) -> T {
-        self.data[(0, 0)]
-    }
-    pub fn y(&self) -> T {
-        self.data[(1, 0)]
-    }
-    pub fn z(&self) -> T {
-        self.data[(2, 0)]
-    }
-}
-
-// --- Vector4 ---
-impl<T: na::Scalar + Copy> MultiArray<T, Rank1<4>, na::SVector<T, 4>> {
-    pub fn new(x: T, y: T, z: T, w: T) -> Self {
-        let inner: na::SVector<T, 4> = na::SVector::from_column_slice(&[x, y, z, w]);
-        Self::from_inner(inner)
-    }
-    pub fn x(&self) -> T {
-        self.data[(0, 0)]
-    }
-    pub fn y(&self) -> T {
-        self.data[(1, 0)]
-    }
-    pub fn z(&self) -> T {
-        self.data[(2, 0)]
-    }
-    pub fn w(&self) -> T {
-        self.data[(3, 0)]
-    }
-}
+impl_vector_new_and_accessors!(2, 0 => x, 1 => y);
+impl_vector_new_and_accessors!(3, 0 => x, 1 => y, 2 => z);
+impl_vector_new_and_accessors!(4, 0 => x, 1 => y, 2 => z, 3 => w);
 
 // --- Generic static vector: zeros, from_slice, dim ---
 impl<T: na::Scalar + Copy + num_traits::Zero, const N: usize>

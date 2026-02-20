@@ -4,6 +4,31 @@ This document describes the design of strelitzia's core data model: how
 mathematical types are defined (`multiarray`), how they are collected into
 simulation fields (`fields`), and the principles governing their interaction.
 
+## Contents
+
+- [1. MultiArray Type System](#1-multiarray-type-system)
+  - [1.1 Design Diagram](#11-design-diagram)
+  - [1.2 Core Struct](#12-core-struct)
+  - [1.3 Type Alias Hierarchy](#13-type-alias-hierarchy)
+  - [1.4 Trait Hierarchy](#14-trait-hierarchy)
+  - [1.5 Internal Traits](#15-internal-traits-hidden-from-users)
+- [2. Field Collections](#2-field-collections)
+  - [2.1 Design Diagram](#21-design-diagram)
+  - [2.2 Core Struct](#22-core-struct)
+  - [2.3 FieldElement](#23-fieldelement----bridge-between-multiarray-and-fields)
+  - [2.4 SolverInterop](#24-solverinterop----zero-copy-flat-slice-access)
+  - [2.5 Operation Traits](#25-operation-traits)
+  - [2.6 Legacy Cast Utilities](#26-legacy-cast-utilities)
+- [3. Operator Design](#3-operator-design)
+  - [3.1 MultiArray Operators](#31-multiarray-operators)
+  - [3.2 Matrix Multiplication](#32-matrix-multiplication)
+  - [3.3 Field Operators](#33-field-operators)
+  - [3.4 Why the two-tier split?](#34-why-the-two-tier-split)
+- [4. File Structure](#4-file-structure)
+- [5. API Stability](#5-api-stability)
+- [6. Extending the System](#6-extending-the-system)
+- [7. Design Rationale](#7-design-rationale)
+
 Module dependency direction:
 
 ```
@@ -12,6 +37,22 @@ common  ──▶  multiarray  ──▶  fields
 
 `common` has no dependencies. `multiarray` depends on `common`. `fields`
 depends on both. No reverse dependencies exist.
+
+### Recommended reading order
+
+Each file depends only on those above it in this list.
+
+| # | File | What you learn |
+|---|------|----------------|
+| 0 | `common.rs` | `Real` precision alias -- the scalar type used everywhere |
+| 1 | `multiarray/types.rs` | Core `MultiArray<T,S,B>` struct, shape types, storage traits |
+| 2 | `multiarray/traits.rs` | Stable API traits (`len`, `as_slice`, indexing) |
+| 3 | `multiarray/operators.rs` | `std::ops` arithmetic, matrix multiplication, `Sum` |
+| 4 | `multiarray/aliases.rs` | User-facing types (`Vector3`, `Matrix3`), constructors, accessors |
+| 5 | `multiarray/linalg.rs` | Extension traits: `dot`, `cross`, `norm`, `transpose` |
+| 6 | `fields/storage.rs` | `Field<T>` container, `FieldElement` bridge, `SolverInterop` |
+| 7 | `fields/ops.rs` | Field compound-assignment operators and reductions |
+| 8 | `fields/cast.rs` | Legacy zero-copy casting (skim only -- prefer `SolverInterop`) |
 
 ---
 
@@ -103,7 +144,19 @@ pub struct MultiArray<T, S, B> {
 | `S` | Shape -- encodes tensor rank and dimensions | `Rank1<3>`, `Rank2<3,3>`, `DynRank1` |
 | `B` | Backend -- actual storage implementation | `na::SVector<T,N>`, `na::DMatrix<T>` |
 
-`#[repr(transparent)]` guarantees zero-cost wrapping and safe pointer casting (critical for `SolverInterop`).
+`#[repr(transparent)]` guarantees zero-cost wrapping and safe pointer casting
+(critical for `SolverInterop`).
+
+`from_inner()` and the dimension-specific `new()` constructors (e.g.
+`Vector3::new(x, y, z)`) are `const fn`, enabling compile-time constant
+definitions such as `pub const MY_VEC: Vector3 = Vector3::new(1.0, 2.0, 3.0);`.
+
+`PhantomData<(T, S)>` tells the compiler that `MultiArray` *logically* owns
+`T` and `S`, even though only `B` is stored as real data. Without it, `T` and
+`S` would be unused generic parameters (a compile error in Rust). `PhantomData`
+is a zero-sized type -- it occupies no memory and generates no runtime code --
+so it preserves the `#[repr(transparent)]` layout while enabling the compiler
+to enforce correct trait bounds, lifetime rules, and variance for `T` and `S`.
 
 ### 1.3 Type Alias Hierarchy
 
@@ -115,10 +168,24 @@ Matrix<T, R, C>  = MultiArray<T, Rank2<R,C>, na::SMatrix<T, R, C>>
 DynVector<T>     = MultiArray<T, DynRank1,   na::DVector<T>>
 DynMatrix<T>     = MultiArray<T, DynRank2,   na::DMatrix<T>>
 
-Vector3 = Vector<Real, 3>       Point3 = Vector3
-Matrix3 = Matrix<Real, 3, 3>    Point2 = Vector2
-...                              ...
+Real aliases          Int aliases (i)       UInt aliases (u)      Bool aliases (b)
+--------------        ----------------      ----------------      ----------------
+Vector2               Vector2i              Vector2u              Vector2b
+Vector3               Vector3i              Vector3u              Vector3b
+Vector4               Vector4i              Vector4u              Vector4b
+Matrix2               Matrix2i              Matrix2u              Matrix2b
+Matrix3               Matrix3i              Matrix3u              Matrix3b
+Matrix4               Matrix4i              Matrix4u              Matrix4b
+
+Point<T, N> = Vector<T, N>         MultiIndex<N> = Point<usize, N>
+Point2, Point3, Point4              MultiIndex2, MultiIndex3, MultiIndex4
+
+Constants (2D): X_AXIS2, Y_AXIS2                    (Vector2 basis vectors)
+Constants (3D): X_AXIS3, Y_AXIS3, Z_AXIS3            (Vector3 basis vectors)
+Convenience:    X_AXIS, Y_AXIS, Z_AXIS = *_AXIS3     (default to 3D)
 ```
+
+Suffix convention: `i` = `Int` (i64), `u` = `UInt` (u64), `b` = `bool`.
 
 Adding new aliases (e.g. `Tensor3`, `DynTensor3`) is a non-breaking change.
 
@@ -336,7 +403,7 @@ heap-allocated field collections.
 
 ### 3.1 MultiArray Operators
 
-Full set of operators via **blanket impls** on `MultiArray`:
+#### Backend-delegating (delegate to nalgebra)
 
 | Operator | Trait | Bound on B |
 |----------|-------|-----------|
@@ -353,6 +420,30 @@ Full set of operators via **blanket impls** on `MultiArray`:
 One impl per operator covers ALL type aliases. Any future backend that
 implements the corresponding `std::ops` trait automatically gets the operator
 on `MultiArray`.
+
+#### Element-wise (via DenseRawStorage)
+
+nalgebra does not implement `Rem` or bitwise ops, so these operate
+element-by-element. Trait bounds on `T` restrict availability automatically
+(e.g. bitwise ops require `T: BitAnd`, which excludes floats).
+
+| Operator | Trait | Bound on T | Available for |
+|----------|-------|-----------|---------------|
+| `a % b` | `Rem` | `T: Rem<Output=T>` | numeric (Real, Int, UInt) |
+| `a % scalar` | `Rem<T>` | `T: Rem<Output=T>` | numeric |
+| `a %= b` | `RemAssign` | `T: RemAssign` | numeric |
+| `a %= scalar` | `RemAssign<T>` | `T: RemAssign` | numeric |
+| `a & b` | `BitAnd` | `T: BitAnd<Output=T>` | Int, UInt, bool |
+| `a \| b` | `BitOr` | `T: BitOr<Output=T>` | Int, UInt, bool |
+| `a ^ b` | `BitXor` | `T: BitXor<Output=T>` | Int, UInt, bool |
+| `!a` | `Not` | `T: Not<Output=T>` | Int, UInt, bool |
+| `a << n` | `Shl<usize>` | `T: Shl<usize, Output=T>` | Int, UInt |
+| `a >> n` | `Shr<usize>` | `T: Shr<usize, Output=T>` | Int, UInt |
+| `a &= b` | `BitAndAssign` | `T: BitAndAssign` | Int, UInt, bool |
+| `a \|= b` | `BitOrAssign` | `T: BitOrAssign` | Int, UInt, bool |
+| `a ^= b` | `BitXorAssign` | `T: BitXorAssign` | Int, UInt, bool |
+| `a <<= n` | `ShlAssign<usize>` | `T: ShlAssign<usize>` | Int, UInt |
+| `a >>= n` | `ShrAssign<usize>` | `T: ShrAssign<usize>` | Int, UInt |
 
 ### 3.2 Matrix Multiplication
 
@@ -373,7 +464,7 @@ Dedicated cross-type `Mul` impls:
 |----------|---------|-----------|-----------|
 | `field += &other` | `&Field<T>` | `T: Add<T, Output=T> + Copy` | Element-wise |
 | `field -= &other` | `&Field<T>` | `T: Sub<T, Output=T> + Copy` | Element-wise |
-| `field *= scalar` | `Real` | `T: Mul<Real, Output=T> + Copy` | Broadcast |
+| `field *= scalar` | `Real` | `Real: Mul<T, Output=T>`, `T: Copy` | Broadcast |
 | `field /= scalar` | `Real` | `T: Div<Real, Output=T> + Copy` | Broadcast |
 | `field += scalar` | `Real` | `T: Add<Real, Output=T> + Copy` | Broadcast |
 | `field -= scalar` | `Real` | `T: Sub<Real, Output=T> + Copy` | Broadcast |
@@ -395,22 +486,25 @@ allocation, making the cost explicit.
 ## 4. File Structure
 
 ```
-src/common.rs               Crate-wide types: Real (precision alias)
+src/common.rs               Crate-wide types: Real, Int, UInt
 
 src/multiarray/             The mathematical container type system
   mod.rs                    Module exports
   types.rs                  MultiArray struct, Shape trait + types, RawStorage/DenseRawStorage
   traits.rs                 MultiArrayOps, DenseMultiArrayOps, NumericMultiArrayOps + impls,
                             Index/IndexMut
-  operators.rs              Blanket std::ops impls, matrix multiplication, Sum
-  aliases.rs                Type aliases (Vector, Matrix, DynVector, etc.) + constructors
+  operators.rs              Backend-delegating ops (Add, Sub, Mul, Div, ...),
+                            element-wise ops (Rem, BitAnd, BitOr, BitXor, Not, Shl, Shr),
+                            matrix multiplication, Sum
+  aliases.rs                Type aliases (Vector, Matrix, DynVector, integer/bool variants,
+                            MultiIndex, etc.), constructors, axis constants (X_AXIS, ...)
   linalg.rs                 Extension traits: VectorOps, CrossProduct, OuterProduct,
                             Hadamard, Transpose, SquareMatrixOps
 
 src/fields/                 Simulation field collections
   mod.rs                    Module exports
   storage.rs                Field<T>, FieldElement trait, SolverInterop (generic impl),
-                            type aliases
+                            type aliases (RealField, IntField, UIntField, BoolField, ...)
   ops.rs                    Field compound assignment operators, FieldOps, ReductionOps, SumOps
   cast.rs                   Legacy zero-copy slice utilities (retained for compatibility)
 ```
@@ -423,8 +517,18 @@ src/fields/                 Simulation field collections
 
 - Trait names and method signatures: `MultiArrayOps`, `DenseMultiArrayOps`,
   `NumericMultiArrayOps`, `FieldElement`, `SolverInterop`
-- Type alias names: `Vector3`, `Matrix3`, `Vector<T,N>`, `Matrix<T,R,C>`,
-  `DynVector<T>`, `DynMatrix<T>`, `ScalarField`, `Vector3Field`, `Matrix3Field`
+- Type alias names: `Vector2`, `Vector3`, `Vector4`, `Matrix2`, `Matrix3`,
+  `Matrix4`, `Vector<T,N>`, `Matrix<T,R,C>`, `DynVector<T>`, `DynMatrix<T>`,
+  `Point<T,N>`, `Point2`, `Point3`, `Point4`, `MultiIndex<N>`, `MultiIndex2`,
+  `MultiIndex3`, `MultiIndex4`,
+  integer variants (`Vector2i`..`Vector4i`, `Matrix2i`..`Matrix4i`,
+  `Vector2u`..`Vector4u`, `Matrix2u`..`Matrix4u`),
+  boolean variants (`Vector2b`..`Vector4b`, `Matrix2b`..`Matrix4b`),
+  constants (`X_AXIS2`, `Y_AXIS2`, `X_AXIS3`, `Y_AXIS3`, `Z_AXIS3`,
+  `X_AXIS`, `Y_AXIS`, `Z_AXIS`),
+  `RealField`, `ScalarField`, `IntField`, `UIntField`, `BoolField`,
+  `Vector3Field`, `Matrix3Field`, `Vector3iField`, `Vector3uField`,
+  `Vector3bField`, `Matrix3iField`, `Matrix3uField`, `Matrix3bField`
 - Extension trait signatures: `VectorOps`, `CrossProduct`, `OuterProduct`,
   `Hadamard`, `Transpose`
 - `Field<T>` struct name and public method signatures

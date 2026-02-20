@@ -6,9 +6,9 @@ A computational physics library in Rust, designed for high-performance simulatio
 
 Strelitzia provides core infrastructure for computational physics applications:
 
+- **Mathematical types** (`Vector3`, `Matrix3`, integer/boolean variants)
 - **Field storage** for simulation data (positions, velocities, stress fields)
 - **Visualization export** to VTK format for ParaView
-- **Geometry utilities** for mesh generation and Voronoi tessellation
 
 The library is built on `nalgebra` for linear algebra, with a focus on clean interfaces that can evolve to support GPU backends.
 
@@ -68,12 +68,23 @@ assert_eq!(x, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 | Module | Type | Description |
 |--------|------|-------------|
 | `common` | `Real` | `f64` (default) or `f32` with `single-precision` feature |
-| `multiarray` | `Vector2`, `Vector3`, `Vector4` | Static vector types |
-| `multiarray` | `Matrix2`, `Matrix3`, `Matrix4` | Static matrix types |
-| `multiarray` | `Point2`, `Point3`, `Point4` | Semantic aliases for positions |
-| `fields` | `ScalarField` | Collection of `Real` values |
-| `fields` | `Vector3Field` | Collection of `Vector3` values |
-| `fields` | `Matrix3Field` | Collection of `Matrix3` values |
+| `common` | `Int`, `UInt` | `i64`, `u64` (fixed width) |
+| `multiarray` | `Vector<T,N>`, `Matrix<T,R,C>` | Generic static types |
+| `multiarray` | `Vector2`, `Vector3`, `Vector4` | Static vector types (fixed to `Real`) |
+| `multiarray` | `Matrix2`, `Matrix3`, `Matrix4` | Static matrix types (fixed to `Real`) |
+| `multiarray` | `Vector2i`..`Vector4i`, `Matrix2i`..`Matrix4i` | Signed integer variants (suffix `i` = `Int`) |
+| `multiarray` | `Vector2u`..`Vector4u`, `Matrix2u`..`Matrix4u` | Unsigned integer variants (suffix `u` = `UInt`) |
+| `multiarray` | `Vector2b`..`Vector4b`, `Matrix2b`..`Matrix4b` | Boolean variants (suffix `b` = `bool`) |
+| `multiarray` | `DynVector<T>`, `DynMatrix<T>` | Dynamic (heap-allocated) types |
+| `multiarray` | `Point<T,N>`, `Point2`, `Point3`, `Point4` | Semantic aliases for positions |
+| `multiarray` | `MultiIndex<N>`, `MultiIndex2`, `MultiIndex3`, `MultiIndex4` | Index aliases (`Point<usize, N>`) |
+| `multiarray` | `X_AXIS2`, `Y_AXIS2` | Compile-time 2D basis vector constants (`Vector2`) |
+| `multiarray` | `X_AXIS3`, `Y_AXIS3`, `Z_AXIS3` | Compile-time 3D basis vector constants (`Vector3`) |
+| `multiarray` | `X_AXIS`, `Y_AXIS`, `Z_AXIS` | Convenience aliases (default to 3D) |
+| `fields` | `RealField` (`ScalarField`) | Collection of `Real` values |
+| `fields` | `IntField`, `UIntField`, `BoolField` | Scalar integer/boolean collections |
+| `fields` | `Vector3Field`, `Vector3iField`, `Vector3uField`, `Vector3bField` | Vector3 collections |
+| `fields` | `Matrix3Field`, `Matrix3iField`, `Matrix3uField`, `Matrix3bField` | Matrix3 collections |
 
 ### Visualiser (`strelitzia::visualiser`)
 
@@ -101,44 +112,24 @@ write_vtu::<2>(
 ).unwrap();
 ```
 
-### Geometry (`strelitzia::geometry`)
-
-Geometric utilities for mesh generation.
-
-```rust
-use strelitzia::geometry::{Point2D, generate_voronoi};
-
-let points: Vec<Point2D> = vec![
-    (0.0, 0.0),
-    (1.0, 0.0),
-    (0.5, 1.0),
-];
-
-// Generate Voronoi tessellation, optionally save visualization
-let trigen = generate_voronoi(&points, Some("voronoi.svg")).unwrap();
-```
-
 ## Project Structure
 
 ```
 strelitzia/
 ├── src/
-│   ├── common.rs           # Crate-wide types (Real)
+│   ├── common.rs           # Crate-wide types (Real, Int, UInt)
 │   ├── multiarray/
 │   │   ├── mod.rs          # Module exports
 │   │   ├── types.rs        # MultiArray struct, Shape, RawStorage
 │   │   ├── traits.rs       # MultiArrayOps, DenseMultiArrayOps, NumericMultiArrayOps
-│   │   ├── operators.rs    # Blanket operator impls, matrix multiplication
-│   │   ├── aliases.rs      # Type aliases + constructors/accessors
+│   │   ├── operators.rs    # Backend-delegating + element-wise ops, matrix multiplication
+│   │   ├── aliases.rs      # Type aliases (Real, Int, UInt, bool variants) + constructors
 │   │   └── linalg.rs       # Extension traits (VectorOps, CrossProduct, etc.)
 │   ├── fields/
 │   │   ├── mod.rs          # Module exports
 │   │   ├── storage.rs      # Field<T>, FieldElement, SolverInterop
 │   │   ├── ops.rs          # Field compound assignment operators
 │   │   └── cast.rs         # Legacy zero-copy slice utilities
-│   ├── geometry/
-│   │   ├── mod.rs
-│   │   └── cvt.rs          # Voronoi tessellation
 │   ├── visualiser/
 │   │   ├── mod.rs
 │   │   ├── field_export.rs     # Field-to-VTK conversion
@@ -189,8 +180,6 @@ cargo test -- --nocapture
 - **nalgebra** (0.34): Linear algebra types and operations
 - **num-traits** (0.2): Generic numeric traits (`Zero`, `One`)
 - **bytemuck** (1.24): Safe byte reinterpretation for VTK encoding
-- **tritet** (3.0): Delaunay triangulation and Voronoi tessellation
-- **plotpy** (1.19): SVG visualisation for geometry output
 
 ## Roadmap
 
@@ -201,10 +190,9 @@ cargo test -- --nocapture
 - ✅ Field operations (arithmetic operators, fill, resize, reductions)
 - ✅ VTK export for ParaView
 - ✅ PVD time series support
-- ✅ Voronoi tessellation
-
 ### Planned Features
 
+- **Geometry module**: Mesh generation, Voronoi tessellation (being rewritten)
 - **Parallel iteration**: Rayon-based `par_iter()` for multi-threaded processing
 - **GPU support**: wgpu/CUDA backends for GPU computation
 - **Extended math types**: Symmetric matrices, more dimension variants

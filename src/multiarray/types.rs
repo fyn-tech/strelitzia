@@ -128,7 +128,7 @@ pub struct MultiArray<T, S, B> {
 
 impl<T, S, B> MultiArray<T, S, B> {
     /// Wrap a raw backend value.
-    pub fn from_inner(inner: B) -> Self {
+    pub const fn from_inner(inner: B) -> Self {
         Self {
             data: inner,
             _phantoms: PhantomData,
