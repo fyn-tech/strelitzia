@@ -14,4 +14,6 @@ if ! docker inspect --format='{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null 
   exit 1
 fi
 
-docker exec -it "$CONTAINER_NAME" bash
+WORKSPACE_FOLDER="/workspaces/$(basename "$(cd "$(dirname "$0")/.." && pwd)")"
+
+docker exec -it -e "TERM=${TERM:-xterm-256color}" -w "$WORKSPACE_FOLDER" "$CONTAINER_NAME" bash -l
