@@ -33,6 +33,7 @@ echo "System Dependencies:"
 check "pkg-config"      "pkg-config --version"
 check "python3"         "python3 --version"
 check "git"             "git --version"
+check "gh"              "gh --version"
 check "openssl"         "pkg-config --exists openssl"
 
 # 3. User Environment
@@ -52,6 +53,13 @@ if TMPFILE=$(mktemp 2>/dev/null) && rm -f "$TMPFILE"; then
 else
     echo "[FAIL] temp write"
     FAILED=1
+fi
+
+# Check git identity (warn only -- not a hard failure in CI)
+if git config user.name > /dev/null 2>&1 && git config user.email > /dev/null 2>&1; then
+    echo "[OK]   git identity ($(git config user.name) <$(git config user.email)>)"
+else
+    echo "[WARN] git identity not configured (run: git config --global user.name/email)"
 fi
 
 # 4. Disk Space (warn if < 5GB free)
