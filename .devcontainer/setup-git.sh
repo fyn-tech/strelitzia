@@ -6,7 +6,10 @@
 
 IDENTITY_FILE=".devcontainer/.git-identity"
 
-git config --global --add safe.directory "$(pwd)"
+WORKSPACE="$(pwd)"
+if ! git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$WORKSPACE"; then
+    git config --global --add safe.directory "$WORKSPACE"
+fi
 
 # --- Identity ---
 

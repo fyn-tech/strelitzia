@@ -6,7 +6,6 @@ echo "----------------------------------------"
 
 FAILED=0
 
-# Function for status output
 check() {
     local desc="$1"
     shift
@@ -18,6 +17,16 @@ check() {
     fi
 }
 
+warn() {
+    local desc="$1"
+    shift
+    if eval "$@" > /dev/null 2>&1; then
+        echo "[OK]   $desc"
+    else
+        echo "[WARN] $desc"
+    fi
+}
+
 # 1. Rust Toolchain
 echo ""
 echo "Rust Toolchain:"
@@ -26,6 +35,17 @@ check "cargo"           "cargo --version"
 check "clippy"          "cargo clippy --version"
 check "rustfmt"         "rustfmt --version"
 check "rust-src"        "rustup component list --installed | grep -q rust-src"
+
+# Minimal compilation test (validates linker and toolchain, not the project)
+COMPILE_TMP=$(mktemp -d 2>/dev/null)
+if echo 'fn main() {}' > "$COMPILE_TMP/test.rs" \
+    && rustc "$COMPILE_TMP/test.rs" -o "$COMPILE_TMP/test" 2>/dev/null; then
+    echo "[OK]   compile + link"
+else
+    echo "[FAIL] compile + link"
+    FAILED=1
+fi
+rm -rf "$COMPILE_TMP"
 
 # 2. System Dependencies
 echo ""
@@ -40,14 +60,30 @@ check "openssl"         "pkg-config --exists openssl"
 echo ""
 echo "User Environment:"
 
-# Check sudo access (skip in CI where we might be root)
+# Verify container user
 if [ "$(id -u)" -eq 0 ]; then
     echo "[SKIP] sudo access (running as root)"
 else
+    EXPECTED_USER="vscode"
+    CURRENT_USER=$(whoami)
+    if [ "$CURRENT_USER" = "$EXPECTED_USER" ]; then
+        echo "[OK]   user ($CURRENT_USER, uid=$(id -u))"
+    else
+        echo "[FAIL] user (expected $EXPECTED_USER, got $CURRENT_USER)"
+        FAILED=1
+    fi
     check "sudo access" "sudo -n true"
 fi
 
-# Check write permissions using temp directory (works in any environment)
+# Workspace mount
+if [ -d "$(pwd)/.git" ]; then
+    echo "[OK]   workspace mounted ($(pwd))"
+else
+    echo "[FAIL] workspace not mounted or not a git repo"
+    FAILED=1
+fi
+
+# Write permissions
 if TMPFILE=$(mktemp 2>/dev/null) && rm -f "$TMPFILE"; then
     echo "[OK]   temp write"
 else
@@ -55,22 +91,34 @@ else
     FAILED=1
 fi
 
-# Check git identity (warn only -- not a hard failure in CI)
-if git config user.name > /dev/null 2>&1 && git config user.email > /dev/null 2>&1; then
-    echo "[OK]   git identity ($(git config user.name) <$(git config user.email)>)"
+# 4. Git
+echo ""
+echo "Git:"
+
+check "git operations"  "git status"
+check "safe.directory"  "git log --oneline -1"
+
+warn  "git identity"    "git config user.name && git config user.email"
+
+if [ -n "$SSH_AUTH_SOCK" ]; then
+    if ssh-add -l > /dev/null 2>&1; then
+        echo "[OK]   ssh agent ($(ssh-add -l 2>/dev/null | wc -l) key(s))"
+    else
+        echo "[WARN] ssh agent (socket set but no keys loaded)"
+    fi
 else
-    echo "[WARN] git identity not configured (run: git config --global user.name/email)"
+    echo "[WARN] ssh agent (SSH_AUTH_SOCK not set)"
 fi
 
-# 4. Disk Space (warn if < 5GB free)
+# 5. Resources
 echo ""
 echo "Resources:"
 FREE_KB=$(df . | tail -1 | awk '{print $4}')
 FREE_GB=$((FREE_KB / 1024 / 1024))
 if [ "$FREE_GB" -ge 5 ]; then
-    echo "[OK]   Disk space (${FREE_GB}GB free)"
+    echo "[OK]   disk space (${FREE_GB}GB free)"
 else
-    echo "[WARN] Disk space (${FREE_GB}GB free, recommend >= 5GB)"
+    echo "[WARN] disk space (${FREE_GB}GB free, recommend >= 5GB)"
 fi
 
 # Summary
