@@ -93,17 +93,13 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
 
   // end recursion, due to max depth or points
   if depth == max_depth || points.len() == 1 {
-      
     self.depth = max_depth;
-
     let offset = self.leaf_data.len();
-
     let leaf_indices: Vec<u32> = maybe_sorted_lists.as_ref().unwrap()[index]
         .iter()
         .map(|(_, i)| *i as u32 + offset as u32)
         .collect();
     self.nodes.push(Node::new().leaves(&leaf_indices));
-    
     self.leaf_data.extend(
       maybe_sorted_lists.as_ref().unwrap()[index].iter().map(|(_, i)| points[*i])
     );
@@ -118,7 +114,6 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
   let mut left_sorted: Vec<Vec<(T, usize)>> = vec![vec![]; D];
   let mut right_sorted: Vec<Vec<(T, usize)>> = vec![vec![]; D];
   for index_d in 0..D {
-
     if index_d == index {
       left_sorted[index] = sorted_lists[index][..mid_index].to_vec();
       right_sorted[index] = sorted_lists[index][..mid_index].to_vec();
@@ -138,9 +133,10 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
   }
 
 
-  // self.build(points, max_depth, Some(left_sorted), Some(depth));
-  // self.build(points, max_depth, Some(right_sorted), Some(depth));
+  // !!!! Need to add a node here for the children trees.
 
+  self = self.build(&points, max_depth, Some(left_sorted), Some(depth));
+  self = self.build(&points, max_depth, Some(right_sorted), Some(depth));
   self
 
 }
@@ -163,13 +159,29 @@ mod tests {
     #[test]
     fn single_depth_test() {
         let points: Vec<Vector<i32, 2>> = vec![
-          Vector::<i32, 2>::new(1, 2),
-          Vector::<i32, 2>::new(3, 4),
-          Vector::<i32, 2>::new(5, 6),
+          Vector::<i32, 2>::new(5, -2),
+          Vector::<i32, 2>::new(1, -4),
+          Vector::<i32, 2>::new(3, 0),
         ];
         let tree = KDTree::new().build(&points, 1, None, None);
         assert_eq!(tree.depth, 1);
         assert_eq!(tree.nodes.len(), 1);
+        assert_eq!(tree.leaf_data.len(), 3);
+        println!("{}, {}", tree.leaf_data[0][0], tree.leaf_data[0][1]);
+        println!("{}, {}", tree.leaf_data[1][0], tree.leaf_data[1][1]);
+        println!("{}, {}", tree.leaf_data[2][0], tree.leaf_data[2][1]);
+    }
+
+        #[test]
+    fn second_depth_test() {
+        let points: Vec<Vector<i32, 2>> = vec![
+          Vector::<i32, 2>::new(5, -2),
+          Vector::<i32, 2>::new(1, -4),
+          Vector::<i32, 2>::new(3, 0),
+        ];
+        let tree = KDTree::new().build(&points, 2, None, None);
+        assert_eq!(tree.depth, 2);
+        assert_eq!(tree.nodes.len(), 3);
         assert_eq!(tree.leaf_data.len(), 3);
         println!("{}, {}", tree.leaf_data[0][0], tree.leaf_data[0][1]);
         println!("{}, {}", tree.leaf_data[1][0], tree.leaf_data[1][1]);
