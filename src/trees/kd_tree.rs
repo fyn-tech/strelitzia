@@ -85,34 +85,25 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32) -> Self{
   self
 }
 
-fn recursive_build(&mut self, points: &Vec<Vector<T, D> >, sorted_lists: Vec<Vec<(T, usize)>>, max_depth: u32, depth: u32) -> Option<u32> {
+fn recursive_build(&mut self, points: &Vec<Vector<T, D> >, sorted_lists: Vec<Vec<usize>>, max_depth: u32, depth: u32) -> Option<u32> {
   
   // end recursion, due to max depth or points
-  println!("here {}", depth);
   let i_dim = (depth as usize)%D;
   if (depth + 1) == max_depth || points.len() == 1 || sorted_lists[i_dim].len() <= 1 {
-  println!("leaf {}", depth);
     return self.add_leaf_node(points, &sorted_lists[i_dim], depth);   
   }  
-  let (left_list, right_list) = bisect_sorted_lists_along_dim(&sorted_lists, i_dim);
+  let (left_list, right_list) = bisect_sorted_lists_along_dim(&points, &sorted_lists, i_dim);
 
   // create new node.
-  println!("no leaf {}", depth);
-  println!("left length {}", left_list.len());
-  println!("right length {}", right_list.len());
-  println!("left length - 0: {}", left_list[0].len());
-  println!("right length - 0: {}", right_list[0].len());
-  println!("left length - 1: {}", left_list[1].len());
-  println!("right length - 1: {}", right_list[1].len());
   let i_node = self.nodes.len();
-  self.nodes.push(Node::new().value(left_list[i_dim].last().unwrap().0));
+  self.nodes.push(Node::new().value(points[*left_list[i_dim].last().unwrap()][i_dim]));
   self.nodes[i_node].i_left_child = self.recursive_build(&points, left_list, max_depth, depth + 1);
   self.nodes[i_node].i_right_child = self.recursive_build(&points, right_list, max_depth, depth + 1);
   Some(i_node as u32)  
 }
 
 
-fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<(T, usize)>, depth: u32) -> Option<u32> {
+fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<usize>, depth: u32) -> Option<u32> {
     if sorted_indices.len() == 0 {
       return None;
     }
@@ -121,61 +112,47 @@ fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<(T
     let offset = self.leaf_data.len();
     let leaf_indices: Vec<u32> = sorted_indices
         .iter()
-        .map(|(_, i)| *i as u32 + offset as u32)
+        .map(|i| *i as u32 + offset as u32)
         .collect();
     self.nodes.push(Node::new().leaves(&leaf_indices));
     self.leaf_data.extend(
-      sorted_indices.iter().map(|(_, i)| points[*i])
+      sorted_indices.iter().map(|i| points[*i])
     );
     Some(self.nodes.len() as u32 - 1)
 }
 
 }
 
-fn bisect_sorted_lists_along_dim<T: Scalar>(sorted_lists: &Vec<Vec<(T, usize)> >, i_dim: usize) -> (Vec<Vec<(T, usize)> >, Vec<Vec<(T, usize)> >) {
+fn bisect_sorted_lists_along_dim<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >, sorted_lists: &Vec<Vec<usize> >, i_dim: usize) -> (Vec<Vec<usize> >, Vec<Vec<usize> >) {
   
-  println!("\tbsl - {}", i_dim);
+  // Determine splitting line
+  assert!(sorted_lists[i_dim].len() > 0, "List must have size greater than zero");
+  let mid_index = (sorted_lists[i_dim].len() - 1)/2;
+  let mid_value = points[sorted_lists[i_dim][mid_index]][i_dim];
 
-
-  let mid_index = sorted_lists[i_dim].len()/2;
-  let mid_value = sorted_lists[i_dim][mid_index].0;
-
-
-
-  println!("\tmid_index - {}", mid_index);
-  println!("\tmid_value - {:?}", mid_value);
-  let mut left_sorted: Vec<Vec<(T, usize)>> = vec![vec![]; sorted_lists.len()];
-  let mut right_sorted: Vec<Vec<(T, usize)>> = vec![vec![]; sorted_lists.len()];
+  // construct left and right sorted lists.
+  let mut left_sorted: Vec<Vec<usize>> = vec![vec![]; sorted_lists.len()];
+  let mut right_sorted: Vec<Vec<usize>> = vec![vec![]; sorted_lists.len()];
   for i_sort_dim in 0..sorted_lists.len() {
-    if i_sort_dim == i_dim {
-      left_sorted[i_sort_dim] = sorted_lists[i_sort_dim][..mid_index].to_vec();
-      right_sorted[i_sort_dim] = sorted_lists[i_sort_dim][mid_index..].to_vec();
-    }
-    else {
       for index in 0..sorted_lists[i_sort_dim].len() {
-        println!("\tmid_value check - {:?}", mid_value);
-        if sorted_lists[i_dim][index].0 < mid_value {
+        if points[sorted_lists[i_sort_dim][index]][i_dim] <= mid_value {
           left_sorted[i_sort_dim].push(sorted_lists[i_sort_dim][index]);
         }
         else {
           right_sorted[i_sort_dim].push(sorted_lists[i_sort_dim][index]);
         }
-      }
     }
   }
 
   (left_sorted, right_sorted)
 }
 
-fn create_sorted_lists<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >) -> Vec<Vec<(T, usize)> > {
+fn create_sorted_lists<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >) -> Vec<Vec<usize> > {
   let mut lists = Vec::new();
   for d in 0..D {
-      let mut scalars: Vec<(T, usize)> = points.iter()
-          .enumerate()
-          .map(|(i, p)| (p[d].clone(), i))
-          .collect();
-      scalars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
-      lists.push(scalars);
+      let mut indices: Vec<usize> = (0..points.len()).collect();
+      indices.sort_by(|&a, &b| points[a][d].partial_cmp(&points[b][d]).unwrap_or(std::cmp::Ordering::Greater));
+      lists.push(indices);
   }
   lists
 }
@@ -233,11 +210,11 @@ mod tests {
           Vector::<i32, 2>::new(3, 0),
         ];
         let tree = KDTree::new().build(&points, 3);
-        assert_eq!(tree.depth, 3);
-        assert_eq!(tree.nodes.len(), 4);
-        assert_eq!(tree.leaf_data.len(), 3);
         println!("{}, {}", tree.leaf_data[0][0], tree.leaf_data[0][1]);
         println!("{}, {}", tree.leaf_data[1][0], tree.leaf_data[1][1]);
         println!("{}, {}", tree.leaf_data[2][0], tree.leaf_data[2][1]);
+        assert_eq!(tree.depth, 3);
+        assert_eq!(tree.nodes.len(), 5);
+        assert_eq!(tree.leaf_data.len(), 3);
     }
 }
