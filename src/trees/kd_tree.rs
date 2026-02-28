@@ -22,6 +22,11 @@ impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static> Node<T> {
     Self { value: T::default(), i_left_child: None, i_right_child: None, leaves: None }
   }
 
+  pub fn value(mut self, node_value: T) -> Self {
+    self.value = node_value;
+    self  
+  }
+
   pub fn is_leaf(self) -> bool {
     self.i_left_child.is_none() && self.i_right_child.is_none()  
   }
@@ -74,7 +79,7 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
 
   assert!(max_depth > 0);
   let depth = depth.unwrap_or(0) + 1;
-  let index = (depth as usize)%D; // depth will always be 1.
+  let index = (depth as usize - 1)%D; // depth will always be 1.
 
   // if the list are not sorted sort them
   if maybe_sorted_lists.is_none() {
@@ -93,7 +98,7 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
 
   // end recursion, due to max depth or points
   if depth == max_depth || points.len() == 1 {
-    self.depth = max_depth;
+    self.depth = std::cmp::max(self.depth, depth);
     let offset = self.leaf_data.len();
     let leaf_indices: Vec<u32> = maybe_sorted_lists.as_ref().unwrap()[index]
         .iter()
@@ -107,21 +112,25 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
     return self;
   }
   
-  // build left
+  // Sort dimensional lists
   let sorted_lists = maybe_sorted_lists.unwrap();
   let mid_index = sorted_lists.len()/2;
+  println!("mid index - {}", mid_index);
   let mid_value = points[sorted_lists[index][mid_index].1][index];
+  println!("mid index original - {:?}", sorted_lists[index][mid_index].1);
+  println!("mid value - {:?}", mid_value);
+
   let mut left_sorted: Vec<Vec<(T, usize)>> = vec![vec![]; D];
   let mut right_sorted: Vec<Vec<(T, usize)>> = vec![vec![]; D];
   for index_d in 0..D {
     if index_d == index {
-      left_sorted[index] = sorted_lists[index][..mid_index].to_vec();
-      right_sorted[index] = sorted_lists[index][..mid_index].to_vec();
+      left_sorted[index_d] = sorted_lists[index_d][..mid_index].to_vec();
+      right_sorted[index_d] = sorted_lists[index_d][mid_index..].to_vec();
     }
     else {
-      for index in 0..sorted_lists.len() {
+      for index in 0..sorted_lists[index_d].len() {
         let i_point = sorted_lists[index_d][index].1;
-        let point_dim_value = points[i_point][index];
+        let point_dim_value = points[i_point][index_d];
         if point_dim_value <= mid_value {
           left_sorted[index_d].push((point_dim_value, i_point));
         }
@@ -134,8 +143,11 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32,
 
 
   // !!!! Need to add a node here for the children trees.
-
+  let i_node = self.nodes.len();
+  self.nodes.push(Node::new().value(mid_value));
+  self.nodes[i_node].i_left_child = Some(self.nodes.len() as u32);
   self = self.build(&points, max_depth, Some(left_sorted), Some(depth));
+  self.nodes[i_node].i_right_child = Some(self.nodes.len() as u32);
   self = self.build(&points, max_depth, Some(right_sorted), Some(depth));
   self
 
@@ -172,7 +184,7 @@ mod tests {
         println!("{}, {}", tree.leaf_data[2][0], tree.leaf_data[2][1]);
     }
 
-        #[test]
+    #[test]
     fn second_depth_test() {
         let points: Vec<Vector<i32, 2>> = vec![
           Vector::<i32, 2>::new(5, -2),
