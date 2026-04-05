@@ -16,9 +16,9 @@ impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static> Scalar for T {}
 #[derive(Debug, Clone)]
 pub struct Node<T: Scalar> {
   pub value: T,
-  pub i_left_child: Option<u32>,
-  pub i_right_child: Option<u32>,
-  pub leaves: Option<Vec<u32>>,
+  pub i_left_child: Option<usize>,
+  pub i_right_child: Option<usize>,
+  pub leaves: Option<Vec<usize>>,
 }
 
 impl<T: Scalar> Node<T> {
@@ -35,7 +35,7 @@ impl<T: Scalar> Node<T> {
     self.i_left_child.is_none() && self.i_right_child.is_none()  
   }
 
-  pub fn leaves(mut self, leaf_indexes: &Vec<u32>) -> Self {
+  pub fn leaves(mut self, leaf_indexes: &Vec<usize>) -> Self {
     self.leaves = Some(leaf_indexes.clone());
     self
   }
@@ -85,7 +85,7 @@ pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32) -> Self{
   self
 }
 
-fn recursive_build(&mut self, points: &Vec<Vector<T, D> >, sorted_lists: Vec<Vec<usize>>, max_depth: u32, depth: u32) -> Option<u32> {
+fn recursive_build(&mut self, points: &Vec<Vector<T, D> >, sorted_lists: Vec<Vec<usize>>, max_depth: u32, depth: u32) -> Option<usize> {
   
   // end recursion, due to max depth or points
   let i_dim = (depth as usize)%D;
@@ -99,25 +99,75 @@ fn recursive_build(&mut self, points: &Vec<Vector<T, D> >, sorted_lists: Vec<Vec
   self.nodes.push(Node::new().value(points[*left_list[i_dim].last().unwrap()][i_dim]));
   self.nodes[i_node].i_left_child = self.recursive_build(&points, left_list, max_depth, depth + 1);
   self.nodes[i_node].i_right_child = self.recursive_build(&points, right_list, max_depth, depth + 1);
-  Some(i_node as u32)  
+  Some(i_node)  
 }
 
-
-fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<usize>, depth: u32) -> Option<u32> {
+fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<usize>, depth: u32) -> Option<usize> {
     if sorted_indices.len() == 0 {
       return None;
     }
 
     self.depth = std::cmp::max(self.depth, depth + 1);
-    let offset = self.leaf_data.len() as u32;
-    let leaf_indices: Vec<u32> = (offset..offset + sorted_indices.len() as u32).collect();
+    let offset = self.leaf_data.len();
+    let leaf_indices: Vec<usize> = (offset..offset + sorted_indices.len()).collect();
     self.nodes.push(Node::new().leaves(&leaf_indices));
     self.leaf_data.extend(
       sorted_indices.iter().map(|i| points[*i])
     );
-    Some(self.nodes.len() as u32 - 1)
+    Some(self.nodes.len() - 1)
 }
 
+fn search(&self, search_region: &Vector<Vector<T, D>, 2>, maybe_i_node: Option<usize>, maybe_bounded_region: Option<Vector<Vector<T, D>, 2> >) {
+  let i_node = maybe_i_node.unwrap_or(0); // start at root node
+  // let bounded_region = maybe_bounded_region.unwrap_or();
+
+  if self.nodes[i_node].is_leaf(){
+
+  }
+}
+
+fn get_sub_tree_leaves(&self, i_node: usize) {
+
+  if self.nodes[i_node].i_left_child.is_some() {
+    self.get_sub_tree_leaves(self.nodes[i_node].i_left_child.unwrap())
+  }
+}
+
+}
+
+
+fn bisect_sorted_lists_along_dim<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >, sorted_lists: &Vec<Vec<usize> >, i_dim: usize) -> (Vec<Vec<usize> >, Vec<Vec<usize> >) {
+  
+  // Determine splitting line
+  assert!(sorted_lists[i_dim].len() > 0, "List must have size greater than zero");
+  let mid_index = (sorted_lists[i_dim].len() - 1)/2;
+  let mid_value = points[sorted_lists[i_dim][mid_index]][i_dim];
+
+  // construct left and right sorted lists.
+  let mut left_sorted: Vec<Vec<usize>> = vec![vec![]; sorted_lists.len()];
+  let mut right_sorted: Vec<Vec<usize>> = vec![vec![]; sorted_lists.len()];
+  for i_sort_dim in 0..sorted_lists.len() {
+      for index in 0..sorted_lists[i_sort_dim].len() {
+        if points[sorted_lists[i_sort_dim][index]][i_dim] <= mid_value {
+          left_sorted[i_sort_dim].push(sorted_lists[i_sort_dim][index]);
+        }
+        else {
+          right_sorted[i_sort_dim].push(sorted_lists[i_sort_dim][index]);
+        }
+    }
+  }
+
+  (left_sorted, right_sorted)
+}
+
+fn create_sorted_lists<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >) -> Vec<Vec<usize> > {
+  let mut lists = Vec::new();
+  for d in 0..D {
+      let mut indices: Vec<usize> = (0..points.len()).collect();
+      indices.sort_by(|&a, &b| points[a][d].partial_cmp(&points[b][d]).unwrap_or(std::cmp::Ordering::Greater));
+      lists.push(indices);
+  }
+  lists
 }
 
 // ============================================================================
@@ -127,7 +177,7 @@ fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<us
 /// Assigns normalised x positions (0, 1, 2, … per leaf) and depths to every
 /// node via a left-to-right DFS.  Returns the x centre of the subtree rooted
 /// at `i`.
-fn layout_nodes<T: Scalar>(nodes: &[Node<T>], i: u32, depth: u32,
+fn layout_nodes<T: Scalar>(nodes: &[Node<T>], i: usize, depth: u32,
                             x: &mut Vec<f64>, depths: &mut Vec<u32>,
                             counter: &mut f64) -> f64 {
   let node = &nodes[i as usize];
@@ -248,40 +298,6 @@ impl<T: Scalar, const D: usize> KDTree<T, D> {
     root.present()?;
     Ok(())
   }
-}
-
-fn bisect_sorted_lists_along_dim<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >, sorted_lists: &Vec<Vec<usize> >, i_dim: usize) -> (Vec<Vec<usize> >, Vec<Vec<usize> >) {
-  
-  // Determine splitting line
-  assert!(sorted_lists[i_dim].len() > 0, "List must have size greater than zero");
-  let mid_index = (sorted_lists[i_dim].len() - 1)/2;
-  let mid_value = points[sorted_lists[i_dim][mid_index]][i_dim];
-
-  // construct left and right sorted lists.
-  let mut left_sorted: Vec<Vec<usize>> = vec![vec![]; sorted_lists.len()];
-  let mut right_sorted: Vec<Vec<usize>> = vec![vec![]; sorted_lists.len()];
-  for i_sort_dim in 0..sorted_lists.len() {
-      for index in 0..sorted_lists[i_sort_dim].len() {
-        if points[sorted_lists[i_sort_dim][index]][i_dim] <= mid_value {
-          left_sorted[i_sort_dim].push(sorted_lists[i_sort_dim][index]);
-        }
-        else {
-          right_sorted[i_sort_dim].push(sorted_lists[i_sort_dim][index]);
-        }
-    }
-  }
-
-  (left_sorted, right_sorted)
-}
-
-fn create_sorted_lists<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >) -> Vec<Vec<usize> > {
-  let mut lists = Vec::new();
-  for d in 0..D {
-      let mut indices: Vec<usize> = (0..points.len()).collect();
-      indices.sort_by(|&a, &b| points[a][d].partial_cmp(&points[b][d]).unwrap_or(std::cmp::Ordering::Greater));
-      lists.push(indices);
-  }
-  lists
 }
 
 #[cfg(test)]
