@@ -3,7 +3,7 @@
 //! Generic Vec-based storage providing a consistent API and future extensibility
 //! (GPU buffers, parallel iteration, metadata).
 
-use crate::common::Real;
+use crate::common::{Int, Real, UInt};
 use crate::multiarray::*;
 use nalgebra as na;
 
@@ -221,10 +221,21 @@ impl<M: FieldElement<Scalar = Real>> SolverInterop for Field<M> {
     }
 }
 
-// Type aliases for semantic clarity
-pub type ScalarField = Field<Real>;
+// Type aliases -- {ElementType}Field pattern
+pub type RealField = Field<Real>;
+pub type ScalarField = RealField; // backward-compat synonym
 pub type Vector3Field = Field<Vector3>;
 pub type Matrix3Field = Field<Matrix3>;
+
+pub type IntField = Field<Int>;
+pub type UIntField = Field<UInt>;
+pub type BoolField = Field<bool>;
+pub type Vector3iField = Field<Vector3i>;
+pub type Vector3uField = Field<Vector3u>;
+pub type Vector3bField = Field<Vector3b>;
+pub type Matrix3iField = Field<Matrix3i>;
+pub type Matrix3uField = Field<Matrix3u>;
+pub type Matrix3bField = Field<Matrix3b>;
 
 #[cfg(test)]
 mod tests {

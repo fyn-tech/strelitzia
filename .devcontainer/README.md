@@ -18,8 +18,30 @@ This devcontainer provides a complete Rust development environment with all nece
 - **GitHub Actions**: Workflow syntax highlighting and validation
 
 ### Additional Tools
-- **Git**: Version control
+- **Git**: Version control (with automatic identity forwarding from host)
+- **GitHub CLI (`gh`)**: Pull requests, issues, and credential helper support
 - **Python 3**: For matplotlib-based visualization
+
+## Git Setup
+
+Git identity (`user.name` and `user.email`) is automatically forwarded from your host machine into the container. This works even if your host uses conditional includes (`includeIf`) or other advanced git configuration.
+
+**Prerequisite**: Ensure your host machine has git identity configured:
+
+```bash
+# Verify (run on your host, not in the container)
+git config user.name
+git config user.email
+```
+
+If these are not set, configure them on your host:
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
+```
+
+**How it works**: The `initializeCommand` runs on the host to capture the resolved identity, and the `postStartCommand` applies it inside the container. SSH agent forwarding is handled automatically by VS Code/Cursor.
 
 ## Getting Started
 
@@ -30,11 +52,9 @@ This devcontainer provides a complete Rust development environment with all nece
    - When prompted, click "Reopen in Container"
    - Or use Command Palette: "Dev Containers: Reopen in Container"
 
-3. **Create a new Rust project**:
+3. **Enter a running container from the terminal** (without VS Code):
    ```bash
-   cargo new my_project
-   cd my_project
-   cargo run
+   ./.devcontainer/enter-devcontainer.sh
    ```
 
 ## Testing
