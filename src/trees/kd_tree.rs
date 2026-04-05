@@ -31,7 +31,7 @@ impl<T: Scalar> Node<T> {
     self  
   }
 
-  pub fn is_leaf(self) -> bool {
+  pub fn is_leaf(&self) -> bool {
     self.i_left_child.is_none() && self.i_right_child.is_none()  
   }
 
@@ -75,7 +75,7 @@ pub fn depth(mut self, depth: u32) -> Self{
 
 pub fn build(mut self, points: &Vec<Vector<T, D> >, max_depth: u32) -> Self{
   
-  if points.len() == 0 {
+  if points.is_empty() {
     return Self::new();
   }
   assert!(max_depth > 0);
@@ -109,11 +109,8 @@ fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<us
     }
 
     self.depth = std::cmp::max(self.depth, depth + 1);
-    let offset = self.leaf_data.len();
-    let leaf_indices: Vec<u32> = sorted_indices
-        .iter()
-        .map(|i| *i as u32 + offset as u32)
-        .collect();
+    let offset = self.leaf_data.len() as u32;
+    let leaf_indices: Vec<u32> = (offset..offset + sorted_indices.len() as u32).collect();
     self.nodes.push(Node::new().leaves(&leaf_indices));
     self.leaf_data.extend(
       sorted_indices.iter().map(|i| points[*i])
@@ -121,6 +118,136 @@ fn add_leaf_node(&mut self, points: &Vec<Vector<T, D> >, sorted_indices: &Vec<us
     Some(self.nodes.len() as u32 - 1)
 }
 
+}
+
+// ============================================================================
+// Visualisation
+// ============================================================================
+
+/// Assigns normalised x positions (0, 1, 2, … per leaf) and depths to every
+/// node via a left-to-right DFS.  Returns the x centre of the subtree rooted
+/// at `i`.
+fn layout_nodes<T: Scalar>(nodes: &[Node<T>], i: u32, depth: u32,
+                            x: &mut Vec<f64>, depths: &mut Vec<u32>,
+                            counter: &mut f64) -> f64 {
+  let node = &nodes[i as usize];
+  depths[i as usize] = depth;
+  if node.is_leaf() {
+    let pos = *counter;
+    *counter += 1.0;
+    x[i as usize] = pos;
+    return pos;
+  }
+  let lx = node.i_left_child .map_or(0.0, |c| layout_nodes(nodes, c, depth + 1, x, depths, counter));
+  let rx = node.i_right_child.map_or(lx,  |c| layout_nodes(nodes, c, depth + 1, x, depths, counter));
+  x[i as usize] = (lx + rx) / 2.0;
+  x[i as usize]
+}
+
+impl<T: Scalar, const D: usize> KDTree<T, D> {
+  /// Render the tree as a top-down graph and write it to an SVG file at `path`.
+  pub fn draw(&self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use plotters::prelude::*;
+
+    if self.nodes.is_empty() { return Ok(()); }
+
+    // --- layout -------------------------------------------------------
+    let n = self.nodes.len();
+    let mut x_pos: Vec<f64> = vec![0.0; n];
+    let mut depths: Vec<u32> = vec![0; n];
+    let mut counter = 0.0f64;
+    layout_nodes(&self.nodes, 0, 0, &mut x_pos, &mut depths, &mut counter);
+    let n_leaves   = counter as usize;
+    let max_depth  = *depths.iter().max().unwrap();
+
+    // --- pre-compute labels so we can size boxes to fit content --------
+    // plotters converts the size via a pt→px factor; 20 here renders as ~16px in browsers.
+    const FONT_SZ: u32 = 20;
+    const FONT_PX: i32 = 16;  // actual rendered glyph height (plotters applies a pt→px factor)
+    const CHAR_W:  i32 = 9;   // ~px per character used only for node width estimation
+    const LINE_H:  i32 = 22;  // line spacing (glyph height + gap)
+    const PAD:     i32 = 10;
+    const V_GAP:   i32 = 55;
+
+    let labels: Vec<Vec<String>> = self.nodes.iter().enumerate().map(|(i, node)| {
+      if node.is_leaf() {
+        node.leaves.as_ref().unwrap().iter().map(|&idx| {
+          let pt = &self.leaf_data[idx as usize];
+          let coords: Vec<String> = (0..D).map(|d| format!("{:?}", pt[d])).collect();
+          format!("#{}: ({})", idx, coords.join(", "))
+        }).collect()
+      } else {
+        let i_dim = depths[i] as usize % D;
+        vec![format!("x{} \u{2264} {:?}", i_dim, node.value)]
+      }
+    }).collect();
+
+    // node width = widest label + padding, same for every node so the tree looks uniform
+    let node_w = labels.iter().flat_map(|ls| ls.iter())
+      .map(|s| s.len() as i32 * CHAR_W + 2 * PAD)
+      .max().unwrap_or(80).max(80);
+
+    let h_slot  = node_w + 40;
+    let max_pts = self.nodes.iter().filter_map(|n| n.leaves.as_ref()).map(|l| l.len()).max().unwrap_or(1);
+    let leaf_h  = max_pts as i32 * LINE_H + 2 * PAD;
+    let inner_h = LINE_H + 2 * PAD;
+    let row_h   = leaf_h + V_GAP;
+
+    let cw = (h_slot * n_leaves as i32 + 60).max(300) as u32;
+    let ch = ((max_depth as i32 + 1) * row_h + 60).max(150) as u32;
+
+    // pixel helpers
+    let px  = |xn: f64| -> i32 { 30 + h_slot / 2 + (xn * h_slot as f64) as i32 };
+    let top = |d: u32, is_leaf: bool| -> i32 {
+      let base = 30 + d as i32 * row_h + V_GAP / 2;
+      if is_leaf { base } else { base + (leaf_h - inner_h) / 2 }
+    };
+    let nh = |is_leaf: bool| -> i32 { if is_leaf { leaf_h } else { inner_h } };
+
+    // --- render -------------------------------------------------------
+    let root = SVGBackend::new(path, (cw, ch)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // edges (drawn first so nodes paint on top)
+    for (i, node) in self.nodes.iter().enumerate() {
+      let il  = node.is_leaf();
+      let cx  = px(x_pos[i]);
+      let cby = top(depths[i], il) + nh(il);
+      for &child in [node.i_left_child, node.i_right_child].iter().flatten() {
+        let c   = child as usize;
+        let cil = self.nodes[c].is_leaf();
+        root.draw(&PathElement::new([(cx, cby), (px(x_pos[c]), top(depths[c], cil))], BLACK))?;
+      }
+    }
+
+    // nodes — use HPos::Center so the SVG backend emits text-anchor="middle",
+    // giving exact horizontal centering without any character-width guesswork.
+    use plotters::style::text_anchor::{HPos, Pos, VPos};
+    let font = plotters::style::TextStyle::from(("sans-serif", FONT_SZ).into_font())
+      .pos(Pos::new(HPos::Center, VPos::Top));
+    for (i, node) in self.nodes.iter().enumerate() {
+      let il  = node.is_leaf();
+      let cx  = px(x_pos[i]);
+      let ty  = top(depths[i], il);
+      let nh_val = nh(il);
+      let rect = [(cx - node_w / 2, ty), (cx + node_w / 2, ty + nh_val)];
+      let fill = if il { RGBColor(173, 216, 230) } else { RGBColor(144, 238, 144) };
+      root.draw(&Rectangle::new(rect, fill.filled()))?;
+      root.draw(&Rectangle::new(rect, BLACK.stroke_width(1)))?;
+
+      // text block vertically centred; each line horizontally centred at cx.
+      // block height = spacing between first and last baseline + one glyph height.
+      let lines    = &labels[i];
+      let text_h   = (lines.len() as i32 - 1) * LINE_H + FONT_PX;
+      let text_top = ty + (nh_val - text_h) / 2;
+      for (j, line) in lines.iter().enumerate() {
+        root.draw(&Text::new(line.clone(), (cx, text_top + j as i32 * LINE_H), font.clone()))?;
+      }
+    }
+
+    root.present()?;
+    Ok(())
+  }
 }
 
 fn bisect_sorted_lists_along_dim<T: Scalar, const D: usize>(points: &Vec<Vector<T, D> >, sorted_lists: &Vec<Vec<usize> >, i_dim: usize) -> (Vec<Vec<usize> >, Vec<Vec<usize> >) {
@@ -200,6 +327,17 @@ mod tests {
         println!("{}, {}", tree.leaf_data[0][0], tree.leaf_data[0][1]);
         println!("{}, {}", tree.leaf_data[1][0], tree.leaf_data[1][1]);
         println!("{}, {}", tree.leaf_data[2][0], tree.leaf_data[2][1]);
+    }
+
+    #[test]
+    fn draw_test() {
+        let points: Vec<Vector<i32, 2>> = vec![
+          Vector::<i32, 2>::new(5, -2),
+          Vector::<i32, 2>::new(1, -4),
+          Vector::<i32, 2>::new(3, 0),
+        ];
+        let tree = KDTree::new().build(&points, 3);
+        tree.draw("kd_tree.svg").unwrap();
     }
 
     #[test]
