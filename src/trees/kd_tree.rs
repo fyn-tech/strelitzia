@@ -122,15 +122,30 @@ fn search(&self, search_region: &Vector<Vector<T, D>, 2>, maybe_i_node: Option<u
   // let bounded_region = maybe_bounded_region.unwrap_or();
 
   if self.nodes[i_node].is_leaf(){
-
+    let range = self.get_sub_tree_leaves(i_node);
   }
 }
 
-fn get_sub_tree_leaves(&self, i_node: usize) {
+fn get_sub_tree_leaves(&self, i_node: usize) -> (usize, usize) {
+  (self.get_bounding_leaf(i_node, true), self.get_bounding_leaf(i_node, false))
+}
 
-  if self.nodes[i_node].i_left_child.is_some() {
-    self.get_sub_tree_leaves(self.nodes[i_node].i_left_child.unwrap())
+fn get_bounding_leaf(&self, i_node: usize, is_left: bool) -> usize {
+
+  let node = &self.nodes[i_node];
+  if node.is_leaf() {
+    let leaves = node.leaves.as_ref().unwrap();
+    if is_left { leaves.first() } else { leaves.last() }.copied().unwrap()
   }
+  else {
+    let child = if is_left {
+        node.i_left_child.unwrap_or_else(|| node.i_right_child.unwrap())
+    } else {
+        node.i_right_child.unwrap_or_else(|| node.i_left_child.unwrap())
+    };
+    self.get_bounding_leaf(child, is_left)
+  }
+
 }
 
 }
