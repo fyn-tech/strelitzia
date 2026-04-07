@@ -1,9 +1,9 @@
 //! Integration tests for the fields module.
 
 use strelitzia::common::Real;
-use strelitzia::multiarray::{Matrix3, Vector3};
-use strelitzia::multiarray::linalg::{VectorOps, CrossProduct};
 use strelitzia::fields::{Matrix3Field, ScalarField, SolverInterop, Vector3Field};
+use strelitzia::multiarray::linalg::{CrossProduct, VectorOps};
+use strelitzia::multiarray::{Matrix3, Vector3};
 
 #[test]
 fn scalar_field_public_api() {

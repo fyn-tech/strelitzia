@@ -153,37 +153,34 @@ where
 ///   </Collection>
 /// </VTKFile>
 /// ```
-pub fn write_pvd(
-    path: impl AsRef<Path>,
-    entries: &[(f64, impl AsRef<str>)],
-) -> io::Result<()> {
+pub fn write_pvd(path: impl AsRef<Path>, entries: &[(f64, impl AsRef<str>)]) -> io::Result<()> {
     let mut file = File::create(path)?;
-    
+
     writeln!(file, r#"<?xml version="1.0"?>"#)?;
     writeln!(file, r#"<VTKFile type="Collection" version="0.1">"#)?;
     writeln!(file, "  <Collection>")?;
-    
+
     for (timestep, vtu_path) in entries {
         // XML escape the file path
-        let escaped_path = vtu_path.as_ref()
+        let escaped_path = vtu_path
+            .as_ref()
             .replace('&', "&amp;")
             .replace('<', "&lt;")
             .replace('>', "&gt;")
             .replace('"', "&quot;")
             .replace('\'', "&apos;");
-        
+
         // Format timestep to always show decimal point
         writeln!(
             file,
             r#"    <DataSet timestep="{}" file="{}"/>"#,
-            timestep,
-            escaped_path
+            timestep, escaped_path
         )?;
     }
-    
+
     writeln!(file, "  </Collection>")?;
     writeln!(file, "</VTKFile>")?;
-    
+
     Ok(())
 }
 
@@ -231,7 +228,7 @@ impl<'a> VtkWriter<'a> {
                         ),
                     ));
                 }
-                
+
                 // Validate all connectivity indices are within bounds
                 let num_points = points.len();
                 for (cell_idx, cell) in c.iter().enumerate() {
@@ -241,13 +238,15 @@ impl<'a> VtkWriter<'a> {
                                 io::ErrorKind::InvalidInput,
                                 format!(
                                     "Connectivity index {} in cell {} is out of bounds (max: {})",
-                                    point_idx, cell_idx, num_points - 1
+                                    point_idx,
+                                    cell_idx,
+                                    num_points - 1
                                 ),
                             ));
                         }
                     }
                 }
-                
+
                 (c.to_vec(), t.iter().map(|&ct| ct.into()).collect())
             }
             (None, None) => {
@@ -260,7 +259,7 @@ impl<'a> VtkWriter<'a> {
         };
 
         let num_cells = conn.len();
-        
+
         // Validate point field lengths
         for field in point_fields {
             let expected_bytes = points.len() * field.num_components * std::mem::size_of::<f64>();
@@ -270,12 +269,17 @@ impl<'a> VtkWriter<'a> {
                     io::ErrorKind::InvalidInput,
                     format!(
                         "Point field '{}' has wrong length: expected {} bytes ({} points × {} components × {} bytes/f64), got {} bytes",
-                        field.name, expected_bytes, points.len(), field.num_components, std::mem::size_of::<f64>(), actual_bytes
+                        field.name,
+                        expected_bytes,
+                        points.len(),
+                        field.num_components,
+                        std::mem::size_of::<f64>(),
+                        actual_bytes
                     ),
                 ));
             }
         }
-        
+
         // Validate cell field lengths
         for field in cell_fields {
             let expected_bytes = num_cells * field.num_components * std::mem::size_of::<f64>();
@@ -285,7 +289,12 @@ impl<'a> VtkWriter<'a> {
                     io::ErrorKind::InvalidInput,
                     format!(
                         "Cell field '{}' has wrong length: expected {} bytes ({} cells × {} components × {} bytes/f64), got {} bytes",
-                        field.name, expected_bytes, num_cells, field.num_components, std::mem::size_of::<f64>(), actual_bytes
+                        field.name,
+                        expected_bytes,
+                        num_cells,
+                        field.num_components,
+                        std::mem::size_of::<f64>(),
+                        actual_bytes
                     ),
                 ));
             }
