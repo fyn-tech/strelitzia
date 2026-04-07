@@ -13,7 +13,8 @@ use nalgebra as na;
 /// Static vector type (stack-allocated, `Copy`).
 pub type Vector<T, const N: usize> = MultiArray<T, Rank1<N>, na::SVector<T, N>>;
 /// Static matrix type (stack-allocated, `Copy`).
-pub type Matrix<T, const R: usize, const C: usize> = MultiArray<T, Rank2<R, C>, na::SMatrix<T, R, C>>;
+pub type Matrix<T, const R: usize, const C: usize> =
+    MultiArray<T, Rank2<R, C>, na::SMatrix<T, R, C>>;
 
 /// Dynamic vector type (heap-allocated, NOT `Copy`).
 pub type DynVector<T> = MultiArray<T, DynRank1, na::DVector<T>>;
@@ -170,11 +171,7 @@ impl<T: na::Scalar + Copy> MultiArray<T, Rank2<3, 3>, na::SMatrix<T, 3, 3>> {
     ///
     /// nalgebra stores in column-major internally, but accepts row-major input.
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        m11: T, m12: T, m13: T,
-        m21: T, m22: T, m23: T,
-        m31: T, m32: T, m33: T,
-    ) -> Self {
+    pub fn new(m11: T, m12: T, m13: T, m21: T, m22: T, m23: T, m31: T, m32: T, m33: T) -> Self {
         let inner: na::SMatrix<T, 3, 3> = na::SMatrix::from_column_slice(&[
             m11, m21, m31, // col 0
             m12, m22, m32, // col 1

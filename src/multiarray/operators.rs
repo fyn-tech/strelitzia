@@ -17,9 +17,8 @@ use crate::common::Real;
 use nalgebra as na;
 use std::marker::PhantomData;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
-    DivAssign, Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub,
-    SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 // ============================================================================
@@ -148,10 +147,7 @@ where
         + na::ClosedMulAssign,
 {
     type Output = MultiArray<T, Rank2<R, C>, na::SMatrix<T, R, C>>;
-    fn mul(
-        self,
-        rhs: MultiArray<T, Rank2<K, C>, na::SMatrix<T, K, C>>,
-    ) -> Self::Output {
+    fn mul(self, rhs: MultiArray<T, Rank2<K, C>, na::SMatrix<T, K, C>>) -> Self::Output {
         let result: na::SMatrix<T, R, C> = self.into_inner() * rhs.into_inner();
         MultiArray::from_inner(result)
     }
@@ -159,8 +155,7 @@ where
 
 // Matrix * Vector -> Vector
 // Matrix<T, R, C> * Vector<T, C> -> Vector<T, R>
-impl<T, const R: usize, const C: usize>
-    Mul<MultiArray<T, Rank1<C>, na::SVector<T, C>>>
+impl<T, const R: usize, const C: usize> Mul<MultiArray<T, Rank1<C>, na::SVector<T, C>>>
     for MultiArray<T, Rank2<R, C>, na::SMatrix<T, R, C>>
 where
     T: na::Scalar
@@ -173,10 +168,7 @@ where
         + na::ClosedMulAssign,
 {
     type Output = MultiArray<T, Rank1<R>, na::SVector<T, R>>;
-    fn mul(
-        self,
-        rhs: MultiArray<T, Rank1<C>, na::SVector<T, C>>,
-    ) -> Self::Output {
+    fn mul(self, rhs: MultiArray<T, Rank1<C>, na::SVector<T, C>>) -> Self::Output {
         let result: na::SVector<T, R> = self.into_inner() * rhs.into_inner();
         MultiArray::from_inner(result)
     }
@@ -184,8 +176,7 @@ where
 
 // Vector * RowVector -> Matrix (outer product via transpose)
 // Vector<T, N> * Matrix<T, 1, M> -> Matrix<T, N, M>
-impl<T, const N: usize, const M: usize>
-    Mul<MultiArray<T, Rank2<1, M>, na::SMatrix<T, 1, M>>>
+impl<T, const N: usize, const M: usize> Mul<MultiArray<T, Rank2<1, M>, na::SMatrix<T, 1, M>>>
     for MultiArray<T, Rank1<N>, na::SVector<T, N>>
 where
     T: na::Scalar
@@ -198,10 +189,7 @@ where
         + na::ClosedMulAssign,
 {
     type Output = MultiArray<T, Rank2<N, M>, na::SMatrix<T, N, M>>;
-    fn mul(
-        self,
-        rhs: MultiArray<T, Rank2<1, M>, na::SMatrix<T, 1, M>>,
-    ) -> Self::Output {
+    fn mul(self, rhs: MultiArray<T, Rank2<1, M>, na::SMatrix<T, 1, M>>) -> Self::Output {
         let result: na::SMatrix<T, N, M> = self.into_inner() * rhs.into_inner();
         MultiArray::from_inner(result)
     }
