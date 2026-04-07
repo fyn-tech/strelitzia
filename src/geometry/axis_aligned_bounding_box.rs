@@ -1,8 +1,6 @@
-// use nalgebra::indexing;
-
 use num_traits::{Bounded, Zero};
 use crate::multiarray::*;
-use std::{fmt::Debug, usize};
+use std::fmt::Debug;
 
 pub trait Scalar: Copy + Clone + PartialOrd + Debug + Default + 'static {}
 impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static> Scalar for T {}
@@ -17,13 +15,20 @@ pub struct AABBox<T: Scalar + Bounded + Zero, const D: usize> {
   pub max: Vector<T, D>,
 }
 
-impl <T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
+impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
+
+    // --- Construction --------------------------------------------------------
 
     fn new() -> Self {
         Self {
-            min: Vector::from_slice(&[T::min_value(); D]),            
+            min: Vector::from_slice(&[T::min_value(); D]),
             max: Vector::from_slice(&[T::max_value(); D]),
         }
+    }
+
+    fn max(mut self, point: &Vector<T, D>) -> Self {
+        self.max = *point;
+        self
     }
 
     fn min(mut self, point: &Vector<T, D>) -> Self {
@@ -31,9 +36,23 @@ impl <T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
         self
     }
 
-    fn max(mut self, point: &Vector<T, D>) -> Self {
-        self.max = *point;
-        self
+    // --- Queries -------------------------------------------------------------
+
+    fn contains(&self, point: &Vector<T, D>, inclusive: bool) -> bool {
+        for d in 0..D {
+            if point[d] < self.min[d] || (!inclusive && point[d] == self.min[d]) { return false; }
+            if point[d] > self.max[d] || (!inclusive && point[d] == self.max[d]) { return false; }
+        }
+        true
+    }
+
+    fn intersects(&self, other: &AABBox<T, D>, inclusive: bool) -> bool {
+        let mut intersection: AABBox<T, D> = AABBox::new();
+        for d in 0..D {
+            intersection.min[d] = if self.min[d] > other.min[d] { self.min[d] } else { other.min[d] };
+            intersection.max[d] = if self.max[d] < other.max[d] { self.max[d] } else { other.max[d] };
+        }
+        !intersection.is_degenerate(inclusive)
     }
 
     fn is_degenerate(&self, inclusive: bool) -> bool {
@@ -43,22 +62,7 @@ impl <T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
         false
     }
 
-    fn contains(&self, point: &Vector<T, D>, inclusive: bool) -> bool {
-        for d in 0..D {
-            if point[d] < self.min[d] || (!inclusive && point[d] == self.min[d]) { return false; } 
-            if point[d] > self.max[d] || (!inclusive && point[d] == self.max[d]) { return false; } 
-        }
-        true
-    }
-
-    fn intersects(&self, other: &AABBox<T, D>, inclusive: bool) -> bool {
-        let mut box_2 : AABBox<T, D> = AABBox::new();
-        for d in 0..D {
-            box_2.min[d] = if self.min[d] > other.min[d] { self.min[d] } else { other.min[d] };
-            box_2.max[d] = if self.max[d] < other.max[d] { self.max[d] } else { other.max[d] };
-        }
-        !box_2.is_degenerate(inclusive)
-    }
+    // --- Mutations -----------------------------------------------------------
 
     fn expand(&mut self, point: &Vector<T, D>) {
         for d in 0..D {
@@ -66,7 +70,6 @@ impl <T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
             self.max[d] = if point[d] > self.max[d] { point[d] } else { self.max[d] };
         }
     }
-
 
     fn split(&mut self, split_point: &Vector<T, D>, keep_left: &Vector<bool, D>) {
         for d in 0..D {
@@ -78,17 +81,17 @@ impl <T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
         }
     }
 
-
 }
 
+// --- Free functions ----------------------------------------------------------
 
-fn merge<T: Scalar + Bounded + Zero, const D: usize>(box_0: &AABBox<T, D>, box_1: &AABBox<T, D>) -> AABBox<T, D>{
-    let mut box_2 : AABBox<T, D> = AABBox::new();
+fn merge<T: Scalar + Bounded + Zero, const D: usize>(a: &AABBox<T, D>, b: &AABBox<T, D>) -> AABBox<T, D> {
+    let mut result: AABBox<T, D> = AABBox::new();
     for d in 0..D {
-        box_2.min[d] = if box_0.min[d] < box_1.min[d] { box_0.min[d] } else { box_1.min[d] };
-        box_2.max[d] = if box_0.max[d] > box_1.max[d] { box_0.max[d] } else { box_1.max[d] };
+        result.min[d] = if a.min[d] < b.min[d] { a.min[d] } else { b.min[d] };
+        result.max[d] = if a.max[d] > b.max[d] { a.max[d] } else { b.max[d] };
     }
-    box_2
+    result
 }
 
 #[cfg(test)]
@@ -101,29 +104,7 @@ mod tests {
             .max(&Vector::from_slice(&max))
     }
 
-    // --- is_degenerate -------------------------------------------------------
-
-    #[test]
-    fn degenerate_inverted() {
-        let b = make_box([1.0, 1.0], [0.0, 2.0]);  // min.x > max.x
-        assert!(b.is_degenerate(true));
-    }
-
-    #[test]
-    fn degenerate_flat_exclusive() {
-        let b = make_box([1.0, 1.0], [1.0, 2.0]);  // zero width in x
-        assert!(b.is_degenerate(false));
-        assert!(!b.is_degenerate(true));             // flat but valid when inclusive
-    }
-
-    #[test]
-    fn not_degenerate() {
-        let b = make_box([0.0, 0.0], [1.0, 1.0]);
-        assert!(!b.is_degenerate(true));
-        assert!(!b.is_degenerate(false));
-    }
-
-    // --- contains ------------------------------------------------------------
+    // --- Queries: contains ---------------------------------------------------
 
     #[test]
     fn contains_interior() {
@@ -136,7 +117,7 @@ mod tests {
     #[test]
     fn contains_on_boundary_inclusive() {
         let b = make_box([0.0, 0.0], [2.0, 2.0]);
-        let p = Vector::from_slice(&[0.0, 1.0]);  // on min boundary
+        let p = Vector::from_slice(&[0.0, 1.0]);
         assert!(b.contains(&p, true));
         assert!(!b.contains(&p, false));
     }
@@ -149,50 +130,14 @@ mod tests {
         assert!(!b.contains(&p, false));
     }
 
-    // --- expand --------------------------------------------------------------
+    // --- Queries: intersects -------------------------------------------------
 
     #[test]
-    fn expand_grows_box() {
-        let mut b = make_box([0.0, 0.0], [1.0, 1.0]);
-        b.expand(&Vector::from_slice(&[2.0, -1.0]));
-        assert_eq!(b.min[0], 0.0);
-        assert_eq!(b.min[1], -1.0);
-        assert_eq!(b.max[0], 2.0);
-        assert_eq!(b.max[1], 1.0);
-    }
-
-    #[test]
-    fn expand_interior_point_no_change() {
-        let mut b = make_box([0.0, 0.0], [2.0, 2.0]);
-        b.expand(&Vector::from_slice(&[1.0, 1.0]));
-        assert_eq!(b.min[0], 0.0); assert_eq!(b.min[1], 0.0);
-        assert_eq!(b.max[0], 2.0); assert_eq!(b.max[1], 2.0);
-    }
-
-    // --- intersects ----------------------------------------------------------
-
-    #[test]
-    fn intersects_overlapping() {
-        let a = make_box([0.0, 0.0], [2.0, 2.0]);
-        let b = make_box([1.0, 1.0], [3.0, 3.0]);
-        assert!(a.intersects(&b, true));
-        assert!(a.intersects(&b, false));
-    }
-
-        #[test]
     fn intersects_contained() {
         let a = make_box([0.0, 0.0], [3.0, 3.0]);
         let b = make_box([1.0, 1.0], [2.0, 2.0]);
         assert!(a.intersects(&b, true));
         assert!(a.intersects(&b, false));
-    }
-
-    #[test]
-    fn intersects_touching_boundary() {
-        let a = make_box([0.0, 0.0], [1.0, 1.0]);
-        let b = make_box([1.0, 0.0], [2.0, 1.0]);  // touch at x=1
-        assert!(a.intersects(&b, true));
-        assert!(!a.intersects(&b, false));
     }
 
     #[test]
@@ -203,27 +148,69 @@ mod tests {
         assert!(!a.intersects(&b, false));
     }
 
-    // --- merge ---------------------------------------------------------------
-
     #[test]
-    fn merge_two_boxes() {
-        let a = make_box([0.0, 1.0], [2.0, 3.0]);
-        let b = make_box([-1.0, 0.0], [1.0, 4.0]);
-        let m = merge(&a, &b);
-        assert_eq!(m.min[0], -1.0); 
-        assert_eq!(m.min[1], 0.0);
-        assert_eq!(m.max[0],  2.0); 
-        assert_eq!(m.max[1], 4.0);
+    fn intersects_overlapping() {
+        let a = make_box([0.0, 0.0], [2.0, 2.0]);
+        let b = make_box([1.0, 1.0], [3.0, 3.0]);
+        assert!(a.intersects(&b, true));
+        assert!(a.intersects(&b, false));
     }
 
-    // --- split ---------------------------------------------------------------
+    #[test]
+    fn intersects_touching_boundary() {
+        let a = make_box([0.0, 0.0], [1.0, 1.0]);
+        let b = make_box([1.0, 0.0], [2.0, 1.0]);
+        assert!(a.intersects(&b, true));
+        assert!(!a.intersects(&b, false));
+    }
+
+    // --- Queries: is_degenerate ----------------------------------------------
+
+    #[test]
+    fn is_degenerate_flat_exclusive() {
+        let b = make_box([1.0, 1.0], [1.0, 2.0]);
+        assert!(b.is_degenerate(false));
+        assert!(!b.is_degenerate(true));
+    }
+
+    #[test]
+    fn is_degenerate_inverted() {
+        let b = make_box([1.0, 1.0], [0.0, 2.0]);
+        assert!(b.is_degenerate(true));
+    }
+
+    #[test]
+    fn is_degenerate_not() {
+        let b = make_box([0.0, 0.0], [1.0, 1.0]);
+        assert!(!b.is_degenerate(true));
+        assert!(!b.is_degenerate(false));
+    }
+
+    // --- Mutations: expand ---------------------------------------------------
+
+    #[test]
+    fn expand_grows_box() {
+        let mut b = make_box([0.0, 0.0], [1.0, 1.0]);
+        b.expand(&Vector::from_slice(&[2.0, -1.0]));
+        assert_eq!(b.min[0], 0.0);  assert_eq!(b.min[1], -1.0);
+        assert_eq!(b.max[0], 2.0);  assert_eq!(b.max[1], 1.0);
+    }
+
+    #[test]
+    fn expand_interior_point_no_change() {
+        let mut b = make_box([0.0, 0.0], [2.0, 2.0]);
+        b.expand(&Vector::from_slice(&[1.0, 1.0]));
+        assert_eq!(b.min[0], 0.0);  assert_eq!(b.min[1], 0.0);
+        assert_eq!(b.max[0], 2.0);  assert_eq!(b.max[1], 2.0);
+    }
+
+    // --- Mutations: split ----------------------------------------------------
 
     #[test]
     fn split_keep_left_upper() {
         let mut b = make_box([0.0, 0.0], [4.0, 4.0]);
-        let p = Vector::from_slice(&[2.0, 2.0]);
-        let keep = Vector::<bool, 2>::from_inner(nalgebra::SVector::<bool, 2>::from([true, false]));
-        b.split(&p, &keep);
+        let keep_side = Vector::<bool, 2>::from_inner(nalgebra::SVector::<bool, 2>::from([true, false]));
+        b.split(&Vector::from_slice(&[2.0, 2.0]), &keep_side);
         assert_eq!(b.min[0], 0.0);  // unchanged
         assert_eq!(b.min[1], 2.0);  // clipped
         assert_eq!(b.max[0], 2.0);  // clipped
@@ -233,10 +220,20 @@ mod tests {
     #[test]
     fn split_point_outside_no_effect() {
         let mut b = make_box([0.0, 0.0], [4.0, 4.0]);
-        let p = Vector::from_slice(&[5.0, 5.0]);  // outside max
-        let keep = Vector::<bool, 2>::from_inner(nalgebra::SVector::<bool, 2>::from([true, true]));
-        b.split(&p, &keep);
-        assert_eq!(b.max[0], 4.0);  // split point > max, no clip
+        let keep_side = Vector::<bool, 2>::from_inner(nalgebra::SVector::<bool, 2>::from([true, true]));
+        b.split(&Vector::from_slice(&[5.0, 5.0]), &keep_side);
+        assert_eq!(b.max[0], 4.0);
         assert_eq!(b.max[1], 4.0);
+    }
+
+    // --- Free functions: merge -----------------------------------------------
+
+    #[test]
+    fn merge_two_boxes() {
+        let a = make_box([0.0, 1.0], [2.0, 3.0]);
+        let b = make_box([-1.0, 0.0], [1.0, 4.0]);
+        let m = merge(&a, &b);
+        assert_eq!(m.min[0], -1.0);  assert_eq!(m.min[1], 0.0);
+        assert_eq!(m.max[0],  2.0);  assert_eq!(m.max[1], 4.0);
     }
 }
