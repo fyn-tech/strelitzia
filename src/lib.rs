@@ -9,6 +9,7 @@
 
 pub mod common;
 pub mod fields;
+pub mod geometry;
 pub mod multiarray;
 pub mod prelude;
 pub mod visualiser;
