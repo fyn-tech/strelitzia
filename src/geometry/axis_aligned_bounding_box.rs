@@ -1,3 +1,5 @@
+//! Axis-aligned bounding box primitive.
+
 use crate::multiarray::*;
 use num_traits::{Bounded, Zero};
 use std::fmt::Debug;
