@@ -4,8 +4,8 @@ use crate::multiarray::*;
 use num_traits::{Bounded, Zero};
 use std::fmt::Debug;
 
-pub trait Scalar: Copy + Clone + PartialOrd + Debug + Default + 'static {}
-impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static> Scalar for T {}
+pub trait Scalar: Copy + Clone + PartialOrd + Debug + Default + 'static + Bounded + Zero {}
+impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static + Bounded + Zero> Scalar for T {}
 
 /// An axis-aligned bounding box in `D` dimensions.
 ///
@@ -13,17 +13,17 @@ impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static> Scalar for T {}
 /// For growing a box from a point cloud, start with `AABBox::new()` (which
 /// sets `min` to `T::MAX` and `max` to `T::MIN`) and call `expand` per point.
 #[derive(Debug, Clone)]
-pub struct AABBox<T: Scalar + Bounded + Zero, const D: usize> {
+pub struct AABBox<T: Scalar, const D: usize> {
     pub min: Vector<T, D>,
     pub max: Vector<T, D>,
 }
 
-impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
+impl<T: Scalar, const D: usize> AABBox<T, D> {
     // --- Construction --------------------------------------------------------
 
     /// Returns an inverted box (`min = T::MAX`, `max = T::MIN`) ready for
     /// expansion via [`expand`](Self::expand).
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             min: Vector::from_slice(&[T::max_value(); D]),
             max: Vector::from_slice(&[T::min_value(); D]),
@@ -31,13 +31,13 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
     }
 
     /// Sets `max` corner. Intended for builder-style construction.
-    fn max(mut self, point: &Vector<T, D>) -> Self {
+    pub fn max(mut self, point: &Vector<T, D>) -> Self {
         self.max = *point;
         self
     }
 
     /// Sets `min` corner. Intended for builder-style construction.
-    fn min(mut self, point: &Vector<T, D>) -> Self {
+    pub fn min(mut self, point: &Vector<T, D>) -> Self {
         self.min = *point;
         self
     }
@@ -48,7 +48,7 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
     ///
     /// When `inclusive` is `true`, points on the boundary are considered
     /// inside. When `false`, the boundary is excluded.
-    fn contains(&self, point: &Vector<T, D>, inclusive: bool) -> bool {
+    pub fn contains(&self, point: &Vector<T, D>, inclusive: bool) -> bool {
         for d in 0..D {
             if point[d] < self.min[d] || (!inclusive && point[d] == self.min[d]) {
                 return false;
@@ -64,7 +64,7 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
     ///
     /// Computes the intersection box and checks whether it is non-degenerate.
     /// `inclusive` controls whether touching boundaries count as intersection.
-    fn intersects(&self, other: &AABBox<T, D>, inclusive: bool) -> bool {
+    pub fn intersects(&self, other: &AABBox<T, D>, inclusive: bool) -> bool {
         let mut intersection: AABBox<T, D> = AABBox::new();
         for d in 0..D {
             intersection.min[d] = if self.min[d] > other.min[d] {
@@ -85,7 +85,7 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
     ///
     /// When `inclusive` is `false`, a flat box (`min == max` in any dimension)
     /// is also considered degenerate.
-    fn is_degenerate(&self, inclusive: bool) -> bool {
+    pub fn is_degenerate(&self, inclusive: bool) -> bool {
         for d in 0..D {
             if self.min[d] > self.max[d] || (!inclusive && self.min[d] == self.max[d]) {
                 return true;
@@ -97,7 +97,7 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
     // --- Mutations -----------------------------------------------------------
 
     /// Grows the box to include `point`. Has no effect if `point` is already inside.
-    fn expand(&mut self, point: &Vector<T, D>) {
+    pub fn expand(&mut self, point: &Vector<T, D>) {
         for d in 0..D {
             self.min[d] = if point[d] < self.min[d] {
                 point[d]
@@ -118,7 +118,7 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
     /// If `keep_left[d]` is `true`, `max[d]` is clipped down to `split_point[d]`;
     /// otherwise `min[d]` is clipped up. Split values outside the current
     /// extents have no effect.
-    fn split(&mut self, split_point: &Vector<T, D>, keep_left: &Vector<bool, D>) {
+    pub fn split(&mut self, split_point: &Vector<T, D>, keep_left: &Vector<bool, D>) {
         for d in 0..D {
             if keep_left[d] {
                 if split_point[d] < self.max[d] {
@@ -136,7 +136,7 @@ impl<T: Scalar + Bounded + Zero, const D: usize> AABBox<T, D> {
 // --- Free functions ----------------------------------------------------------
 
 /// Returns the smallest box enclosing both `a` and `b`.
-fn merge<T: Scalar + Bounded + Zero, const D: usize>(
+pub fn merge<T: Scalar, const D: usize>(
     a: &AABBox<T, D>,
     b: &AABBox<T, D>,
 ) -> AABBox<T, D> {
