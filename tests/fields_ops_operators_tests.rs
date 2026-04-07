@@ -3,8 +3,8 @@
 //! Binary operators that create new Fields are intentionally deleted.
 //! Only in-place (compound assignment) operators are tested here.
 
-use strelitzia::multiarray::Vector3;
 use strelitzia::fields::{ScalarField, Vector3Field};
+use strelitzia::multiarray::Vector3;
 
 // ============================================================================
 // Field-to-Field Compound Assignment Operations

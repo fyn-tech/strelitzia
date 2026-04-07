@@ -3,9 +3,9 @@
 //! Run with: cargo run --example api_demo
 
 use strelitzia::common::Real;
-use strelitzia::multiarray::*;
-use strelitzia::multiarray::linalg::*;
 use strelitzia::fields::*;
+use strelitzia::multiarray::linalg::*;
+use strelitzia::multiarray::*;
 
 fn main() {
     println!("╔══════════════════════════════════════════════════════╗");
@@ -23,16 +23,32 @@ fn main() {
     println!("  w          = ({}, {}, {})", w.x(), w.y(), w.z());
 
     let origin = Vector3::zeros();
-    println!("  zeros()    = ({}, {}, {})", origin.x(), origin.y(), origin.z());
+    println!(
+        "  zeros()    = ({}, {}, {})",
+        origin.x(),
+        origin.y(),
+        origin.z()
+    );
 
     let from_data = Vector3::from_slice(&[7.0, 8.0, 9.0]);
-    println!("  from_slice = ({}, {}, {})", from_data.x(), from_data.y(), from_data.z());
+    println!(
+        "  from_slice = ({}, {}, {})",
+        from_data.x(),
+        from_data.y(),
+        from_data.z()
+    );
 
     let v2 = Vector2::new(1.0, 2.0);
     let v4 = Vector4::new(1.0, 2.0, 3.0, 4.0);
     println!("  Vector2    = ({}, {})", v2.x(), v2.y());
     println!("  Vector2    = ({}, {})", v2.x(), v2.y());
-    println!("  Vector4    = ({}, {}, {}, {})", v4.x(), v4.y(), v4.z(), v4.w());
+    println!(
+        "  Vector4    = ({}, {}, {}, {})",
+        v4.x(),
+        v4.y(),
+        v4.z(),
+        v4.w()
+    );
 
     // Point aliases -- same types, semantic naming
     let pos: Point3 = Vector3::new(10.0, 20.0, 30.0);
@@ -46,16 +62,17 @@ fn main() {
     let identity = Matrix3::identity();
     println!("  identity =");
     for r in 0..3 {
-        println!("    [{:.1}  {:.1}  {:.1}]", identity[r * 3], identity[r * 3 + 1], identity[r * 3 + 2]);
+        println!(
+            "    [{:.1}  {:.1}  {:.1}]",
+            identity[r * 3],
+            identity[r * 3 + 1],
+            identity[r * 3 + 2]
+        );
     }
 
     // Note: Matrix3::new takes row-major input (like writing on paper),
     // but nalgebra stores column-major internally.
-    let m = Matrix3::new(
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
-        7.0, 8.0, 9.0,
-    );
+    let m = Matrix3::new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0);
     println!("\n  custom matrix (row-major input) =");
     // as_slice gives column-major layout
     let s = m.as_slice();
@@ -63,7 +80,10 @@ fn main() {
     println!("    nrows={}, ncols={}", m.nrows(), m.ncols());
 
     let z = Matrix3::zeros();
-    println!("  zeros: all elements = {}", z.as_slice().iter().all(|&x| x == 0.0));
+    println!(
+        "  zeros: all elements = {}",
+        z.as_slice().iter().all(|&x| x == 0.0)
+    );
 
     // ========================================================================
     // 3. VECTOR ARITHMETIC (binary + compound assignment)
@@ -79,11 +99,21 @@ fn main() {
     let neg = -v;
     println!("  -v         = ({}, {}, {})", neg.x(), neg.y(), neg.z());
 
-    let scaled = 2.0 * v;                     // scalar * array (left-multiply)
-    println!("  2.0 * v    = ({}, {}, {})", scaled.x(), scaled.y(), scaled.z());
+    let scaled = 2.0 * v; // scalar * array (left-multiply)
+    println!(
+        "  2.0 * v    = ({}, {}, {})",
+        scaled.x(),
+        scaled.y(),
+        scaled.z()
+    );
 
-    let halved = v / 2.0;                     // array / scalar
-    println!("  v / 2.0    = ({}, {}, {})", halved.x(), halved.y(), halved.z());
+    let halved = v / 2.0; // array / scalar
+    println!(
+        "  v / 2.0    = ({}, {}, {})",
+        halved.x(),
+        halved.y(),
+        halved.z()
+    );
 
     // Compound assignment (in-place)
     let mut acc = Vector3::zeros();
@@ -119,18 +149,33 @@ fn main() {
     println!("  ||v||_inf     = {}", linf);
 
     let unit = v.normalised();
-    println!("  normalised(v) = ({:.6}, {:.6}, {:.6}), norm = {:.6}",
-        unit.x(), unit.y(), unit.z(), unit.norm());
+    println!(
+        "  normalised(v) = ({:.6}, {:.6}, {:.6}), norm = {:.6}",
+        unit.x(),
+        unit.y(),
+        unit.z(),
+        unit.norm()
+    );
 
     // CrossProduct
     let cross = v.cross(&w);
-    println!("  v x w         = ({}, {}, {})", cross.x(), cross.y(), cross.z());
+    println!(
+        "  v x w         = ({}, {}, {})",
+        cross.x(),
+        cross.y(),
+        cross.z()
+    );
 
     // 2D cross product (returns a 3D vector along z)
     let a2 = Vector2::new(1.0, 0.0);
     let b2 = Vector2::new(0.0, 1.0);
     let cross2d = a2.cross(&b2);
-    println!("  2D cross      = ({}, {}, {})", cross2d.x(), cross2d.y(), cross2d.z());
+    println!(
+        "  2D cross      = ({}, {}, {})",
+        cross2d.x(),
+        cross2d.y(),
+        cross2d.z()
+    );
 
     // OuterProduct
     let u = Vector3::new(1.0, 0.0, 0.0);
@@ -143,7 +188,10 @@ fn main() {
 
     // Transpose
     let row = v.transpose();
-    println!("  v^T           = 1x3 matrix, {} elements", row.as_slice().len());
+    println!(
+        "  v^T           = 1x3 matrix, {} elements",
+        row.as_slice().len()
+    );
 
     let mt = m.transpose();
     println!("  M^T           = {:?}", mt.as_slice());
@@ -158,7 +206,12 @@ fn main() {
 
     // Matrix * Vector
     let rotated = identity * v;
-    println!("  I * v = ({}, {}, {})", rotated.x(), rotated.y(), rotated.z());
+    println!(
+        "  I * v = ({}, {}, {})",
+        rotated.x(),
+        rotated.y(),
+        rotated.z()
+    );
 
     // Matrix * Matrix
     let product = identity * m;
@@ -174,7 +227,12 @@ fn main() {
 
     let mut editable = v;
     editable[1] = 99.0;
-    println!("  after v[1]=99: ({}, {}, {})", editable.x(), editable.y(), editable.z());
+    println!(
+        "  after v[1]=99: ({}, {}, {})",
+        editable.x(),
+        editable.y(),
+        editable.z()
+    );
 
     // MultiArrayOps trait
     println!("  v.len()    = {}", v.len());
@@ -195,10 +253,19 @@ fn main() {
     println!("  Vector<f32, 3>  = ({}, {}, {})", vi.x(), vi.y(), vi.z());
 
     let big = Vector::<Real, 6>::zeros();
-    println!("  Vector<Real, 6> = {:?}, dim={}", big.as_slice(), big.dim());
+    println!(
+        "  Vector<Real, 6> = {:?}, dim={}",
+        big.as_slice(),
+        big.dim()
+    );
 
     let rect = Matrix::<Real, 2, 3>::zeros();
-    println!("  Matrix<Real,2,3> = {:?}, {}x{}", rect.as_slice(), rect.nrows(), rect.ncols());
+    println!(
+        "  Matrix<Real,2,3> = {:?}, {}x{}",
+        rect.as_slice(),
+        rect.nrows(),
+        rect.ncols()
+    );
 
     // ========================================================================
     // 8. FIELD STORAGE
@@ -221,14 +288,23 @@ fn main() {
     // Iteration
     let centroid: Vector3 = positions.iter().copied().sum::<Vector3>();
     let centroid = (1.0 / positions.len() as Real) * centroid;
-    println!("  centroid = ({:.4}, {:.4}, {:.4})", centroid.x(), centroid.y(), centroid.z());
+    println!(
+        "  centroid = ({:.4}, {:.4}, {:.4})",
+        centroid.x(),
+        centroid.y(),
+        centroid.z()
+    );
 
     // Mutable iteration
     for pos in positions.iter_mut() {
-        *pos = *pos - centroid;    // centre around origin
+        *pos = *pos - centroid; // centre around origin
     }
-    println!("  after centring: p0 = ({:.4}, {:.4}, {:.4})",
-        positions[0].x(), positions[0].y(), positions[0].z());
+    println!(
+        "  after centring: p0 = ({:.4}, {:.4}, {:.4})",
+        positions[0].x(),
+        positions[0].y(),
+        positions[0].z()
+    );
 
     // Index access
     positions[0] = Vector3::new(99.0, 0.0, 0.0);
@@ -253,22 +329,22 @@ fn main() {
     println!("  a = {:?}", a_field.as_slice());
     println!("  b = {:?}", b_field.as_slice());
 
-    a_field += &b_field;      // element-wise addition
+    a_field += &b_field; // element-wise addition
     println!("  a += &b  -> {:?}", a_field.as_slice());
 
-    a_field -= &b_field;      // element-wise subtraction
+    a_field -= &b_field; // element-wise subtraction
     println!("  a -= &b  -> {:?}", a_field.as_slice());
 
-    a_field *= 3.0;           // scalar broadcast multiply
+    a_field *= 3.0; // scalar broadcast multiply
     println!("  a *= 3.0 -> {:?}", a_field.as_slice());
 
-    a_field /= 3.0;           // scalar broadcast divide
+    a_field /= 3.0; // scalar broadcast divide
     println!("  a /= 3.0 -> {:?}", a_field.as_slice());
 
-    a_field += 100.0;         // scalar broadcast add
+    a_field += 100.0; // scalar broadcast add
     println!("  a += 100 -> {:?}", a_field.as_slice());
 
-    a_field -= 100.0;         // scalar broadcast subtract
+    a_field -= 100.0; // scalar broadcast subtract
     println!("  a -= 100 -> {:?}", a_field.as_slice());
 
     // Also works on vector fields
@@ -276,9 +352,15 @@ fn main() {
     vf.push(Vector3::new(1.0, 0.0, 0.0));
     vf.push(Vector3::new(0.0, 1.0, 0.0));
     vf *= 5.0;
-    println!("  vector field *= 5: ({},{},{}), ({},{},{})",
-        vf[0].x(), vf[0].y(), vf[0].z(),
-        vf[1].x(), vf[1].y(), vf[1].z());
+    println!(
+        "  vector field *= 5: ({},{},{}), ({},{},{})",
+        vf[0].x(),
+        vf[0].y(),
+        vf[0].z(),
+        vf[1].x(),
+        vf[1].y(),
+        vf[1].z()
+    );
 
     // ========================================================================
     // 10. FIELD OPS TRAITS (fill, resize, reduce, sum)
@@ -322,11 +404,17 @@ fn main() {
 
     // Write: solver writes results back directly
     let flat_mut: &mut [Real] = field.as_flat_slice_mut();
-    flat_mut[0] = 10.0;   // modify first component of first vector
-    flat_mut[5] = 60.0;   // modify last component of second vector
-    println!("  after solver write: v0=({},{},{}), v1=({},{},{})",
-        field[0].x(), field[0].y(), field[0].z(),
-        field[1].x(), field[1].y(), field[1].z());
+    flat_mut[0] = 10.0; // modify first component of first vector
+    flat_mut[5] = 60.0; // modify last component of second vector
+    println!(
+        "  after solver write: v0=({},{},{}), v1=({},{},{})",
+        field[0].x(),
+        field[0].y(),
+        field[0].z(),
+        field[1].x(),
+        field[1].y(),
+        field[1].z()
+    );
 
     // Works for scalars too
     let mut sf = ScalarField::new();
@@ -356,29 +444,34 @@ fn main() {
     for i in 0..n {
         pos_field.push(Vector3::new(i as Real, 0.0, 0.0));
         vel_field.push(Vector3::zeros());
-        force_field.push(Vector3::new(0.0, -9.81, 0.0));   // gravity
+        force_field.push(Vector3::new(0.0, -9.81, 0.0)); // gravity
     }
-    println!("  Initial positions: {:?}",
-        pos_field.iter().map(|p| (p.x(), p.y())).collect::<Vec<_>>());
+    println!(
+        "  Initial positions: {:?}",
+        pos_field.iter().map(|p| (p.x(), p.y())).collect::<Vec<_>>()
+    );
 
     // Euler integration: v += dt * F,  x += dt * v
     let dt: Real = 0.1;
     for i in 0..n {
-        vel_field[i] += dt * force_field[i];     // MultiArray compound assign
-        pos_field[i] += dt * vel_field[i];        // scalar * MultiArray
+        vel_field[i] += dt * force_field[i]; // MultiArray compound assign
+        pos_field[i] += dt * vel_field[i]; // scalar * MultiArray
     }
 
     println!("  After one step (dt={}):", dt);
     for i in 0..n {
-        println!("    particle {}: pos=({:.4}, {:.4}), vel=({:.4}, {:.4})",
-            i, pos_field[i].x(), pos_field[i].y(),
-            vel_field[i].x(), vel_field[i].y());
+        println!(
+            "    particle {}: pos=({:.4}, {:.4}), vel=({:.4}, {:.4})",
+            i,
+            pos_field[i].x(),
+            pos_field[i].y(),
+            vel_field[i].x(),
+            vel_field[i].y()
+        );
     }
 
     // Compute kinetic energy using field iteration + linalg
-    let ke: Real = vel_field.iter()
-        .map(|v| 0.5 * v.norm_squared())
-        .sum();
+    let ke: Real = vel_field.iter().map(|v| 0.5 * v.norm_squared()).sum();
     println!("  Total kinetic energy = {:.6}", ke);
 
     println!("\n=== Demo Complete ===");

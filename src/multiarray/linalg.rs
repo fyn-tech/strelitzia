@@ -94,8 +94,7 @@ impl<T: na::RealField + Copy> CrossProduct<T> for Vector<T, 3> {
 impl<T: na::RealField + Copy> CrossProduct<T> for Vector<T, 2> {
     type Output = Vector<T, 3>;
     fn cross(&self, other: &Self) -> Vector<T, 3> {
-        let z = self.as_inner()[0] * other.as_inner()[1]
-            - self.as_inner()[1] * other.as_inner()[0];
+        let z = self.as_inner()[0] * other.as_inner()[1] - self.as_inner()[1] * other.as_inner()[0];
         Vector::<T, 3>::new(T::zero(), T::zero(), z)
     }
 }
@@ -112,17 +111,17 @@ pub trait OuterProduct<T, Rhs> {
 
 // Vector<T,N> x Vector<T,M> -> Matrix<T,N,M>
 impl<
-        T: na::Scalar
-            + Copy
-            + Mul<Output = T>
-            + std::ops::Add<Output = T>
-            + std::ops::AddAssign
-            + std::ops::MulAssign
-            + num_traits::Zero
-            + num_traits::One,
-        const N: usize,
-        const M: usize,
-    > OuterProduct<T, Vector<T, M>> for Vector<T, N>
+    T: na::Scalar
+        + Copy
+        + Mul<Output = T>
+        + std::ops::Add<Output = T>
+        + std::ops::AddAssign
+        + std::ops::MulAssign
+        + num_traits::Zero
+        + num_traits::One,
+    const N: usize,
+    const M: usize,
+> OuterProduct<T, Vector<T, M>> for Vector<T, N>
 {
     type Output = Matrix<T, N, M>;
     fn outer(&self, other: &Vector<T, M>) -> Matrix<T, N, M> {
