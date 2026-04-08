@@ -17,7 +17,7 @@ pub struct AABBox<T: Scalar, const D: usize> {
     pub min: Vector<T, D>,
     pub max: Vector<T, D>,
 }
-
+    
 impl<T: Scalar, const D: usize> AABBox<T, D> {
     // --- Construction --------------------------------------------------------
 
@@ -118,7 +118,7 @@ impl<T: Scalar, const D: usize> AABBox<T, D> {
     /// If `keep_left[d]` is `true`, `max[d]` is clipped down to `split_point[d]`;
     /// otherwise `min[d]` is clipped up. Split values outside the current
     /// extents have no effect.
-    pub fn split(&mut self, split_point: &Vector<T, D>, keep_left: &Vector<bool, D>) {
+    pub fn split(&mut self, split_point: &Vector<T, D>, keep_left: &[bool; D]) {
         for d in 0..D {
             if keep_left[d] {
                 if split_point[d] < self.max[d] {
@@ -279,8 +279,7 @@ mod tests {
     #[test]
     fn split_keep_left_upper() {
         let mut b = make_box([0.0, 0.0], [4.0, 4.0]);
-        let keep_side = make_keep(true, false);
-        b.split(&Vector::from_slice(&[2.0, 2.0]), &keep_side);
+        b.split(&Vector::from_slice(&[2.0, 2.0]), &[true, false]);
         assert_eq!(b.min[0], 0.0); // unchanged
         assert_eq!(b.min[1], 2.0); // clipped
         assert_eq!(b.max[0], 2.0); // clipped
@@ -290,7 +289,7 @@ mod tests {
     #[test]
     fn split_point_outside_no_effect() {
         let mut b = make_box([0.0, 0.0], [4.0, 4.0]);
-        b.split(&Vector::from_slice(&[5.0, 5.0]), &make_keep(true, true));
+        b.split(&Vector::from_slice(&[5.0, 5.0]), &[true, true]);
         assert_eq!(b.max[0], 4.0);
         assert_eq!(b.max[1], 4.0);
     }
