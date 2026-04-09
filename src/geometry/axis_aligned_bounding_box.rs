@@ -7,6 +7,17 @@ use std::fmt::Debug;
 pub trait Scalar: Copy + Clone + PartialOrd + Debug + Default + 'static + Bounded + Zero {}
 impl<T: Copy + Clone + PartialOrd + Debug + Default + 'static + Bounded + Zero> Scalar for T {}
 
+/// Classification of the spatial relationship between two [`AABBox`] instances.
+#[derive(Debug, PartialEq)]
+pub enum Overlap {
+    /// The boxes do not touch or overlap.
+    Disjoint,
+    /// The boxes partially overlap but neither fully contains the other.
+    Intersecting,
+    /// One box fully contains the other, including the case where they are equal.
+    Containing,
+}
+
 /// An axis-aligned bounding box in `D` dimensions.
 ///
 /// Initialised via the builder: `AABBox::new().min(&min_pt).max(&max_pt)`.
@@ -64,21 +75,31 @@ impl<T: Scalar, const D: usize> AABBox<T, D> {
     ///
     /// Computes the intersection box and checks whether it is non-degenerate.
     /// `inclusive` controls whether touching boundaries count as intersection.
-    pub fn intersects(&self, other: &AABBox<T, D>, inclusive: bool) -> bool {
+    pub fn intersects(&self, other: &AABBox<T, D>, inclusive: bool) -> Overlap {
+        let mut ordinate_use_count: i32 = 0;
         let mut intersection: AABBox<T, D> = AABBox::new();
         for d in 0..D {
             intersection.min[d] = if self.min[d] > other.min[d] {
+                ordinate_use_count += 1;
                 self.min[d]
             } else {
+                ordinate_use_count -= 1;
                 other.min[d]
             };
             intersection.max[d] = if self.max[d] < other.max[d] {
+                ordinate_use_count += 1;
                 self.max[d]
             } else {
+                ordinate_use_count -= 1;
                 other.max[d]
             };
         }
-        !intersection.is_degenerate(inclusive)
+        
+        if intersection.is_degenerate(inclusive) { return Overlap::Disjoint; }
+        else {
+            if ordinate_use_count.abs() == (2 * D) as i32 { return Overlap::Containing; }
+            else {return Overlap::Intersecting; }
+        }
     }
 
     /// Returns `true` if the box has zero or negative volume in any dimension.
@@ -166,10 +187,6 @@ mod tests {
             .max(&Vector::from_slice(&max))
     }
 
-    fn make_keep(x: bool, y: bool) -> Vector<bool, 2> {
-        Vector::<bool, 2>::from_inner(nalgebra::SVector::<bool, 2>::from([x, y]))
-    }
-
     // --- Queries: contains ---------------------------------------------------
 
     #[test]
@@ -199,35 +216,51 @@ mod tests {
     // --- Queries: intersects -------------------------------------------------
 
     #[test]
-    fn intersects_contained() {
+    fn intersects_containing_self_contains_other() {
         let a = make_box([0.0, 0.0], [3.0, 3.0]);
         let b = make_box([1.0, 1.0], [2.0, 2.0]);
-        assert!(a.intersects(&b, true));
-        assert!(a.intersects(&b, false));
+        assert_eq!(a.intersects(&b, true),  Overlap::Containing);
+        assert_eq!(a.intersects(&b, false), Overlap::Containing);
+    }
+
+    #[test]
+    fn intersects_containing_other_contains_self() {
+        let a = make_box([1.0, 1.0], [2.0, 2.0]);
+        let b = make_box([0.0, 0.0], [3.0, 3.0]);
+        assert_eq!(a.intersects(&b, true),  Overlap::Containing);
+        assert_eq!(a.intersects(&b, false), Overlap::Containing);
+    }
+
+    #[test]
+    fn intersects_containing_equal_boxes() {
+        let a = make_box([0.0, 0.0], [2.0, 2.0]);
+        let b = make_box([0.0, 0.0], [2.0, 2.0]);
+        assert_eq!(a.intersects(&b, true),  Overlap::Containing);
+        assert_eq!(a.intersects(&b, false), Overlap::Containing);
     }
 
     #[test]
     fn intersects_disjoint() {
         let a = make_box([0.0, 0.0], [1.0, 1.0]);
         let b = make_box([2.0, 0.0], [3.0, 1.0]);
-        assert!(!a.intersects(&b, true));
-        assert!(!a.intersects(&b, false));
+        assert_eq!(a.intersects(&b, true),  Overlap::Disjoint);
+        assert_eq!(a.intersects(&b, false), Overlap::Disjoint);
     }
 
     #[test]
     fn intersects_overlapping() {
         let a = make_box([0.0, 0.0], [2.0, 2.0]);
         let b = make_box([1.0, 1.0], [3.0, 3.0]);
-        assert!(a.intersects(&b, true));
-        assert!(a.intersects(&b, false));
+        assert_eq!(a.intersects(&b, true),  Overlap::Intersecting);
+        assert_eq!(a.intersects(&b, false), Overlap::Intersecting);
     }
 
     #[test]
     fn intersects_touching_boundary() {
         let a = make_box([0.0, 0.0], [1.0, 1.0]);
         let b = make_box([1.0, 0.0], [2.0, 1.0]);
-        assert!(a.intersects(&b, true));
-        assert!(!a.intersects(&b, false));
+        assert_eq!(a.intersects(&b, true),  Overlap::Intersecting);
+        assert_eq!(a.intersects(&b, false), Overlap::Disjoint);
     }
 
     // --- Queries: is_degenerate ----------------------------------------------
