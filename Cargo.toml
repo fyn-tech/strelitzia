@@ -12,4 +12,5 @@ bytemuck = "1.24.0"
 nalgebra = "0.34.1"
 num-traits = "0.2"
 plotpy = "1.19.0"
+plotters = { version = "0.3", default-features = false, features = ["svg_backend"] }
 tritet = "3.0.2"
