@@ -132,47 +132,41 @@ impl<T: Scalar, const D: usize> AABBox<T, D> {
             };
         }
     }
-
-    /// Clips the box to one side of a splitting hyperplane per dimension.
-    ///
-    /// For each dimension `d`, `split_point[d]` defines the split value.
-    /// If `keep_left[d]` is `true`, `max[d]` is clipped down to `split_point[d]`;
-    /// otherwise `min[d]` is clipped up. Split values outside the current
-    /// extents have no effect.
-    pub fn split(&mut self, split_point: &Vector<T, D>, keep_left: &[bool; D]) {
-        for d in 0..D {
-            if keep_left[d] {
-                if split_point[d] < self.max[d] {
-                    self.max[d] = split_point[d];
-                }
-            } else {
-                if split_point[d] > self.min[d] {
-                    self.min[d] = split_point[d];
-                }
-            }
-        }
-    }
 }
 
 // --- Free functions ----------------------------------------------------------
 
 /// Returns the smallest box enclosing both `a` and `b`.
-pub fn merge<T: Scalar, const D: usize>(
-    a: &AABBox<T, D>,
-    b: &AABBox<T, D>,
-) -> AABBox<T, D> {
+pub fn merge<T: Scalar, const D: usize>(a: &AABBox<T, D>, b: &AABBox<T, D>) -> AABBox<T, D> {
     let mut result: AABBox<T, D> = AABBox::new();
     for d in 0..D {
-        result.min[d] = if a.min[d] < b.min[d] {
-            a.min[d]
-        } else {
-            b.min[d]
-        };
-        result.max[d] = if a.max[d] > b.max[d] {
-            a.max[d]
-        } else {
-            b.max[d]
-        };
+        result.min[d] = if a.min[d] < b.min[d] { a.min[d] } else { b.min[d] };
+        result.max[d] = if a.max[d] > b.max[d] { a.max[d] } else { b.max[d] };
+    }
+    result
+}
+
+/// Clips `bound_box` to one side of a splitting hyperplane per dimension, 
+/// returning the clipped result.
+///
+/// For each dimension `d`, `split_point[d]` defines the split value.
+/// If `keep_left[d]` is `true`, `max[d]` is clipped down to `split_point[d]`;
+/// otherwise `min[d]` is clipped up. Split values outside the current extents
+/// have no effect.
+pub fn split<T: Scalar, const D: usize>(
+    bound_box: &AABBox<T, D>,
+    split_point: &Vector<T, D>,
+    keep_left: &[bool; D],
+) -> AABBox<T, D> {
+    let mut result = bound_box.clone();
+    for d in 0..D {
+        if keep_left[d] {
+            if split_point[d] < result.max[d] {
+                result.max[d] = split_point[d];
+            }
+        } else if split_point[d] > result.min[d] {
+            result.min[d] = split_point[d];
+        }
     }
     result
 }
@@ -307,26 +301,6 @@ mod tests {
         assert_eq!(b.max[1], 2.0);
     }
 
-    // --- Mutations: split ----------------------------------------------------
-
-    #[test]
-    fn split_keep_left_upper() {
-        let mut b = make_box([0.0, 0.0], [4.0, 4.0]);
-        b.split(&Vector::from_slice(&[2.0, 2.0]), &[true, false]);
-        assert_eq!(b.min[0], 0.0); // unchanged
-        assert_eq!(b.min[1], 2.0); // clipped
-        assert_eq!(b.max[0], 2.0); // clipped
-        assert_eq!(b.max[1], 4.0); // unchanged
-    }
-
-    #[test]
-    fn split_point_outside_no_effect() {
-        let mut b = make_box([0.0, 0.0], [4.0, 4.0]);
-        b.split(&Vector::from_slice(&[5.0, 5.0]), &[true, true]);
-        assert_eq!(b.max[0], 4.0);
-        assert_eq!(b.max[1], 4.0);
-    }
-
     // --- Free functions: merge -----------------------------------------------
 
     #[test]
@@ -338,5 +312,25 @@ mod tests {
         assert_eq!(m.min[1], 0.0);
         assert_eq!(m.max[0], 2.0);
         assert_eq!(m.max[1], 4.0);
+    }
+
+    // --- Free functions: split -----------------------------------------------
+
+    #[test]
+    fn split_keep_left_upper() {
+        let b = make_box([0.0, 0.0], [4.0, 4.0]);
+        let result = split(&b, &Vector::from_slice(&[2.0, 2.0]), &[true, false]);
+        assert_eq!(result.min[0], 0.0); // unchanged
+        assert_eq!(result.min[1], 2.0); // clipped
+        assert_eq!(result.max[0], 2.0); // clipped
+        assert_eq!(result.max[1], 4.0); // unchanged
+    }
+
+    #[test]
+    fn split_point_outside_no_effect() {
+        let b = make_box([0.0, 0.0], [4.0, 4.0]);
+        let result = split(&b, &Vector::from_slice(&[5.0, 5.0]), &[true, true]);
+        assert_eq!(result.max[0], 4.0);
+        assert_eq!(result.max[1], 4.0);
     }
 }
