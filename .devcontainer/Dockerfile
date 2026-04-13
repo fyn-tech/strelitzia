@@ -1,6 +1,6 @@
 FROM rust:1.91.0
 
-# Install system dependencies and GitHub CLI
+# Install system dependencies, Jupyter, and GitHub CLI
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     ca-certificates \
     python3-matplotlib \
+    python3-pip \
+    jupyter-notebook \
     && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
        | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
@@ -40,5 +42,15 @@ USER $USERNAME
 # Set working directory
 WORKDIR /workspace
 
+# Install Jupyter kernel discovery and evcxr Rust kernel
+RUN pip3 install --break-system-packages jupyter-client \
+    && cargo install evcxr_jupyter && evcxr_jupyter --install
+
+ENV PATH="/usr/local/cargo/bin:/home/${USERNAME}/.local/bin:${PATH}"
+
+# Ensure cargo is on PATH for all interactive shells (login and non-login)
+RUN echo 'source /usr/local/cargo/env' >> /home/${USERNAME}/.bashrc \
+    && echo 'source /usr/local/cargo/env' >> /home/${USERNAME}/.profile
+
 # Verify installation
-RUN rustc --version && cargo --version
+RUN rustc --version && cargo --version && evcxr_jupyter --help

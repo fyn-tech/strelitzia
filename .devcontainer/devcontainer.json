@@ -10,7 +10,8 @@
         "vadimcn.vscode-lldb",
         "fill-labs.dependi",
         "tamasfe.even-better-toml",
-        "github.vscode-github-actions"
+        "github.vscode-github-actions",
+        "ms-toolsai.jupyter"
       ],
       "settings": {
         "rust-analyzer.check.command": "clippy",
@@ -20,14 +21,17 @@
         "rust-analyzer.completion.addCallParentheses": false,
         "rust-analyzer.completion.addCallArgumentSnippets": false,
         "editor.formatOnSave": true,
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.env.linux": {
+          "PATH": "/usr/local/cargo/bin:${env:HOME}/.local/bin:${env:PATH}"
+        }
       }
     }
   },
   "runArgs": ["--name", "strelitzia-dev"],
   "forwardPorts": [3000, 8000, 8080],
   "initializeCommand": "bash .devcontainer/init-host-git.sh",
-  "postCreateCommand": "echo 'Verifying Rust installation...' && rustc --version && cargo --version && echo 'Post-create command completed.'",
+  "postCreateCommand": "echo 'Verifying Rust installation...' && rustc --version && cargo --version && evcxr_jupyter --install && echo 'Post-create command completed.'",
   "postStartCommand": "bash .devcontainer/setup-git.sh",
   "remoteUser": "vscode",
   "updateRemoteUserUID": false

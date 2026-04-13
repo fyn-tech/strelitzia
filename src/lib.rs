@@ -5,11 +5,14 @@
 //! - [`common`] -- crate-wide types (`Real`, `Int`, `UInt`)
 //! - [`multiarray`] -- mathematical type system (`Vector3`, `Matrix3`, etc.)
 //! - [`fields`] -- simulation data collections with zero-copy solver interop
+//! - [`geometry`] -- geometry types and operations
+//! - [`meshgen`] -- mesh generation algorithms (CVT)
 //! - [`visualiser`] -- VTK export for ParaView visualisation
 
 pub mod common;
 pub mod fields;
 pub mod geometry;
+pub mod meshgen;
 pub mod multiarray;
 pub mod prelude;
 pub mod visualiser;

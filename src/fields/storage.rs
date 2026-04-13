@@ -153,6 +153,20 @@ impl<T> Field<T> {
     {
         self.data.extend(iter);
     }
+
+    /// Creates a field from an existing Vec (zero-copy).
+    pub fn from_vec(data: Vec<T>) -> Self {
+        Self { data }
+    }
+}
+
+// FromIterator enables .collect::<Field<T>>() in generic code
+impl<T> std::iter::FromIterator<T> for Field<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self {
+            data: iter.into_iter().collect(),
+        }
+    }
 }
 
 // Index trait for ergonomic element access: field[i]
@@ -342,5 +356,25 @@ mod tests {
 
         assert_eq!(field[0], 2.0);
         assert_eq!(field[1], 4.0);
+    }
+
+    #[test]
+    fn field_from_vec() {
+        let vec = vec![1.0, 2.0, 3.0];
+        let field = ScalarField::from_vec(vec);
+
+        assert_eq!(field.len(), 3);
+        assert_eq!(field[0], 1.0);
+        assert_eq!(field[1], 2.0);
+        assert_eq!(field[2], 3.0);
+    }
+
+    #[test]
+    fn field_from_iterator() {
+        let field: ScalarField = (0..5).map(|i| i as Real).collect();
+
+        assert_eq!(field.len(), 5);
+        assert_eq!(field[0], 0.0);
+        assert_eq!(field[4], 4.0);
     }
 }

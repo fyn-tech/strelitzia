@@ -57,12 +57,23 @@ impl<T, S: Shape, B: Neg<Output = B>> Neg for MultiArray<T, S, B> {
     }
 }
 
-// Scalar multiplication: Real * MultiArray  (scalar on the left only)
+// Scalar multiplication: Real * MultiArray  (scalar on the left)
 impl<S: Shape, B: Mul<Real, Output = B>> Mul<MultiArray<Real, S, B>> for Real {
     type Output = MultiArray<Real, S, B>;
     fn mul(self, rhs: MultiArray<Real, S, B>) -> MultiArray<Real, S, B> {
         MultiArray {
             data: rhs.data * self,
+            _phantoms: PhantomData,
+        }
+    }
+}
+
+// Scalar multiplication: MultiArray * Real  (scalar on the right)
+impl<S: Shape, B: Mul<Real, Output = B>> Mul<Real> for MultiArray<Real, S, B> {
+    type Output = Self;
+    fn mul(self, scalar: Real) -> Self {
+        Self {
+            data: self.data * scalar,
             _phantoms: PhantomData,
         }
     }
