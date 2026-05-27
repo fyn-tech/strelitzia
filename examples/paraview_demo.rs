@@ -21,15 +21,7 @@ fn main() -> std::io::Result<()> {
     let points_2d: Vec<[f64; 2]> = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 
     let path = dir.join("point_cloud_2d.vtu");
-    write_vtu::<_, 2>(
-        &path,
-        &points_2d,
-        None,
-        None,
-        &[],
-        &[],
-        Encoding::Ascii,
-    )?;
+    write_vtu::<_, 2>(&path, &points_2d, None, None, &[], &[], Encoding::Ascii)?;
     println!("  ✓ Wrote {} (2D point cloud, ASCII)\n", path.display());
 
     // Example 2: Triangle mesh in 3D
@@ -122,7 +114,10 @@ fn main() -> std::io::Result<()> {
         &[pressure_field],
         Encoding::Base64,
     )?;
-    println!("  ✓ Wrote {} (cube with temperature, velocity, pressure)\n", path.display());
+    println!(
+        "  ✓ Wrote {} (cube with temperature, velocity, pressure)\n",
+        path.display()
+    );
 
     // Example 4: Mixed cell types
     println!("Example 4: Writing mesh with mixed cell types...");

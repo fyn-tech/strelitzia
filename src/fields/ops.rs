@@ -77,7 +77,7 @@ impl<T: Clone> FieldOps<T> for Field<T> {
 // Compound Assignment Operators (NO binary operators that allocate new Fields)
 // ============================================================================
 
-use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 // Field += &Field
 impl<T> AddAssign<&Field<T>> for Field<T>

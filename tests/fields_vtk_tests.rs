@@ -2,8 +2,8 @@
 
 use std::fs;
 use std::path::PathBuf;
-use strelitzia::multiarray::Vector3;
 use strelitzia::fields::{ScalarField, Vector3Field};
+use strelitzia::multiarray::Vector3;
 use strelitzia::visualiser::*;
 
 /// RAII guard for automatic test file cleanup
@@ -98,8 +98,14 @@ fn test_scalar_field_vtk_export_ascii() {
     verify_vtk_content(guard.path(), 3, "temperature", 1);
 
     let content = fs::read_to_string(guard.path()).expect("Should read file");
-    assert!(content.contains("format=\"ascii\""), "Should be ASCII format");
-    assert!(content.contains("25"), "Should contain temperature value 25");
+    assert!(
+        content.contains("format=\"ascii\""),
+        "Should be ASCII format"
+    );
+    assert!(
+        content.contains("25"),
+        "Should contain temperature value 25"
+    );
 }
 
 #[test]
@@ -163,7 +169,10 @@ fn test_vector3_field_vtk_export_ascii() {
     verify_vtk_content(guard.path(), 3, "velocity", 3);
 
     let content = fs::read_to_string(guard.path()).expect("Should read file");
-    assert!(content.contains("format=\"ascii\""), "Should be ASCII format");
+    assert!(
+        content.contains("format=\"ascii\""),
+        "Should be ASCII format"
+    );
 }
 
 #[test]
@@ -282,7 +291,10 @@ fn test_golden_file_simple_scalar() {
     )
     .expect("Should write VTU");
 
-    assert_matches_golden_file(guard.path(), "tests/fixtures/golden_vtu/simple_scalar_ascii.vtu");
+    assert_matches_golden_file(
+        guard.path(),
+        "tests/fixtures/golden_vtu/simple_scalar_ascii.vtu",
+    );
 }
 
 #[test]

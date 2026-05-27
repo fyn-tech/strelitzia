@@ -29,8 +29,8 @@
 //! # Ok::<(), std::io::Error>(())
 //! ```
 
-use crate::fields::{ScalarField, Vector3Field, SolverInterop};
 use super::FieldArray;
+use crate::fields::{ScalarField, SolverInterop, Vector3Field};
 
 /// Convert ScalarField to VTK FieldArray for visualization.
 ///
@@ -47,10 +47,7 @@ use super::FieldArray;
 /// temp.push(30.0);
 /// let vtk_array = scalar_field_to_vtk_array("temperature", &temp);
 /// ```
-pub fn scalar_field_to_vtk_array<'a>(
-    name: &'a str,
-    field: &'a ScalarField,
-) -> FieldArray<'a> {
+pub fn scalar_field_to_vtk_array<'a>(name: &'a str, field: &'a ScalarField) -> FieldArray<'a> {
     FieldArray::from_slice(name, field.as_slice(), 1)
 }
 
@@ -71,9 +68,6 @@ pub fn scalar_field_to_vtk_array<'a>(
 /// velocity.push(Vector3::new(1.0, 0.0, 0.0));
 /// let vtk_array = vector3_field_to_vtk_array("velocity", &velocity);
 /// ```
-pub fn vector3_field_to_vtk_array<'a>(
-    name: &'a str,
-    field: &'a Vector3Field,
-) -> FieldArray<'a> {
+pub fn vector3_field_to_vtk_array<'a>(name: &'a str, field: &'a Vector3Field) -> FieldArray<'a> {
     FieldArray::from_slice(name, field.as_flat_slice(), 3)
 }

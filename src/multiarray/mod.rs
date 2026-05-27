@@ -21,14 +21,14 @@
 //! let result = mat * v;
 //! ```
 
-mod types;
-mod traits;
-mod operators;
 mod aliases;
 pub mod linalg;
+mod operators;
+mod traits;
+mod types;
 
-pub use types::*;
-pub use traits::*;
 pub use aliases::*;
+pub use traits::*;
+pub use types::*;
 // operators.rs contains only trait impls (no new public items to re-export),
 // but we still need the module to be compiled.

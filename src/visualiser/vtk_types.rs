@@ -14,6 +14,7 @@ use bytemuck::Pod;
 /// | `Quad` | 9 | Quadrilateral |
 /// | `Tetra` | 10 | Tetrahedron |
 /// | `Hexa` | 12 | Hexahedron |
+/// | `Wedge` | 13 | Triangular prism |
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CellType {
     Vertex,
@@ -24,6 +25,7 @@ pub enum CellType {
     Quad,
     Tetra,
     Hexa,
+    Wedge,
 }
 
 /// Internal VTK cell type IDs.
@@ -41,6 +43,7 @@ pub(crate) enum VTKCellType {
     Quad = 9,
     Tetra = 10,
     Hexahedron = 12,
+    Wedge = 13,
 }
 
 impl From<CellType> for VTKCellType {
@@ -55,6 +58,7 @@ impl From<CellType> for VTKCellType {
             CellType::Quad => VTKCellType::Quad,
             CellType::Tetra => VTKCellType::Tetra,
             CellType::Hexa => VTKCellType::Hexahedron,
+            CellType::Wedge => VTKCellType::Wedge,
         }
     }
 }
@@ -122,5 +126,6 @@ mod tests {
         assert_eq!(VTKCellType::from(CellType::Quad) as u8, 9);
         assert_eq!(VTKCellType::from(CellType::Tetra) as u8, 10);
         assert_eq!(VTKCellType::from(CellType::Hexa) as u8, 12);
+        assert_eq!(VTKCellType::from(CellType::Wedge) as u8, 13);
     }
 }

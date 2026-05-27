@@ -5,7 +5,7 @@
 //! via the `FieldElement` trait in `storage.rs`.
 
 use crate::common::Real;
-use crate::multiarray::{Vector3, Matrix3};
+use crate::multiarray::{Matrix3, Vector3};
 
 /// Reinterpret `&[Vector3]` as `&[Real]` (3 Reals per Vector3).
 ///
@@ -24,9 +24,7 @@ pub fn as_flat_slice_mut(vectors: &mut [Vector3]) -> &mut [Real] {
     if vectors.is_empty() {
         return &mut [];
     }
-    unsafe {
-        std::slice::from_raw_parts_mut(vectors.as_mut_ptr() as *mut Real, vectors.len() * 3)
-    }
+    unsafe { std::slice::from_raw_parts_mut(vectors.as_mut_ptr() as *mut Real, vectors.len() * 3) }
 }
 
 /// Reinterpret `&[Matrix3]` as `&[Real]` (9 Reals per Matrix3, column-major).

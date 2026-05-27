@@ -8,8 +8,13 @@ default = []
 single-precision = []  # Use f32 instead of f64 for Real type
 
 [dependencies]
+argmin = "0.11"
+argmin-math = { version = "0.5", features = ["vec"] }
 bytemuck = "1.24.0"
+gauss-quad = "0.2"
 nalgebra = "0.34.1"
+robust = "1"
+spade = "2"
 num-traits = "0.2"
 plotpy = "1.19.0"
 tritet = "3.0.2"

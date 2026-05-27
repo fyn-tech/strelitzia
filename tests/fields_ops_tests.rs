@@ -1,7 +1,7 @@
 //! Tests for generic field operations.
 
-use strelitzia::multiarray::Vector3;
 use strelitzia::fields::{FieldOps, ReductionOps, ScalarField, SumOps, Vector3Field};
+use strelitzia::multiarray::Vector3;
 
 #[test]
 fn test_field_ops_fill() {

@@ -3,7 +3,7 @@
 //! Generic Vec-based storage providing a consistent API and future extensibility
 //! (GPU buffers, parallel iteration, metadata).
 
-use crate::common::Real;
+use crate::common::{Int, Real, UInt};
 use crate::multiarray::*;
 use nalgebra as na;
 
@@ -153,6 +153,20 @@ impl<T> Field<T> {
     {
         self.data.extend(iter);
     }
+
+    /// Creates a field from an existing Vec (zero-copy).
+    pub fn from_vec(data: Vec<T>) -> Self {
+        Self { data }
+    }
+}
+
+// FromIterator enables .collect::<Field<T>>() in generic code
+impl<T> std::iter::FromIterator<T> for Field<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self {
+            data: iter.into_iter().collect(),
+        }
+    }
 }
 
 // Index trait for ergonomic element access: field[i]
@@ -221,10 +235,21 @@ impl<M: FieldElement<Scalar = Real>> SolverInterop for Field<M> {
     }
 }
 
-// Type aliases for semantic clarity
-pub type ScalarField = Field<Real>;
+// Type aliases -- {ElementType}Field pattern
+pub type RealField = Field<Real>;
+pub type ScalarField = RealField; // backward-compat synonym
 pub type Vector3Field = Field<Vector3>;
 pub type Matrix3Field = Field<Matrix3>;
+
+pub type IntField = Field<Int>;
+pub type UIntField = Field<UInt>;
+pub type BoolField = Field<bool>;
+pub type Vector3iField = Field<Vector3i>;
+pub type Vector3uField = Field<Vector3u>;
+pub type Vector3bField = Field<Vector3b>;
+pub type Matrix3iField = Field<Matrix3i>;
+pub type Matrix3uField = Field<Matrix3u>;
+pub type Matrix3bField = Field<Matrix3b>;
 
 #[cfg(test)]
 mod tests {
@@ -331,5 +356,25 @@ mod tests {
 
         assert_eq!(field[0], 2.0);
         assert_eq!(field[1], 4.0);
+    }
+
+    #[test]
+    fn field_from_vec() {
+        let vec = vec![1.0, 2.0, 3.0];
+        let field = ScalarField::from_vec(vec);
+
+        assert_eq!(field.len(), 3);
+        assert_eq!(field[0], 1.0);
+        assert_eq!(field[1], 2.0);
+        assert_eq!(field[2], 3.0);
+    }
+
+    #[test]
+    fn field_from_iterator() {
+        let field: ScalarField = (0..5).map(|i| i as Real).collect();
+
+        assert_eq!(field.len(), 5);
+        assert_eq!(field[0], 0.0);
+        assert_eq!(field[4], 4.0);
     }
 }

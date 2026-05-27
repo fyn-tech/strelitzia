@@ -19,10 +19,10 @@
 //! assert_eq!(flat, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 //! ```
 
-mod storage;
 mod cast;
 mod ops;
+mod storage;
 
-pub use storage::*;
 pub use cast::*;
 pub use ops::*;
+pub use storage::*;
