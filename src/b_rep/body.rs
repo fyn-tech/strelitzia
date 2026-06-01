@@ -27,31 +27,58 @@ struct Edge {
 
 struct Loop {
     pub edges: Vec<usize>,
+    pub reversed: Vec<bool>,
+}
+
+impl Loop {
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty() && self.reversed.is_empty()
+    }
+
+    pub fn last(&self) -> Option<(usize, bool)> {
+        Some((*self.edges.last()?, *self.reversed.last()?))
+    }
+
+    pub fn push(&mut self, edge: usize, reverse: bool) {
+        self.edges.push(edge);
+        self.reversed.push(reverse);
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.edges.reserve(additional);
+        self.reversed.reserve(additional);
+    }
+}
+
+struct Surface {
+    
 }
 
 struct Face {
-    pub edges: Vec<Edge>,
+    pub outer_loop: Loop,
+    pub inner_loops: Vec<Loop>,
+    pub surface: Surface
 }
 
 struct Body {
     pub vertices: Vec<Vector3>,
     pub edges: Vec<Edge>,
-    pub loops: Vec<usize>,
+    pub loops: Vec<Loop>,
     pub faces: Vec<Face>,
 }
 
 impl Body {
-    pub fn add_vertex(mut self, point: &Vector3) -> usize {
+    pub fn add_vertex(&mut self, point: &Vector3) -> usize {
         self.vertices.push(point.clone());
         self.vertices.len() - 1
     }
 
-    pub fn add_edge(mut self, vertex_0: usize, vertex_1: usize) -> usize {
+    pub fn add_edge(&mut self, vertex_0: usize, vertex_1: usize) -> usize {
         self.edges.push(Edge{vertices: [vertex_0, vertex_1]});
         self.edges.len() - 1
     }
 
-    pub fn create_loop(mut self, edges: &Vec<usize>) -> Result<usize, String> {
+    pub fn create_loop(&mut self, edges: &Vec<usize>) -> Result<usize, String> {
 
         if edges.is_empty() {
             return Err("No edges provided.".to_string());
@@ -60,20 +87,30 @@ impl Body {
             return Err(format!("Loop requires two edges, got {}.", edges.len()));
         }
 
-        let mut new_loop = Loop{ edges: Vec::new() };
-        new_loop.edges.reserve(edges.len());
-        for (i_edge, i_next_edge) in edges.iter().zip(edges.iter().cycle().skip(1)) {
+        let mut new_loop = Loop{ edges: Vec::new(), reversed: Vec::new() };
+        new_loop.reserve(edges.len());
+
+        for i_edge in edges.iter() {
             let edge = self.edges.get(*i_edge).ok_or( format!("Index {} not in range [0, {}).", *i_edge, self.edges.len()))?;
-            let next_edge = self.edges.get(*i_next_edge).ok_or( format!("Index {} not in range [0, {}).", *i_next_edge, self.edges.len()))?;
             
-            if edge.vertices[1] == next_edge.vertices[0] {
-                new_loop.edges.push(*i_edge);
+            if new_loop.is_empty() {
+                new_loop.push(*i_edge, false);
+                continue;
+            }
+
+            let (last_edge, reversed) = &new_loop.last().unwrap();
+            let next_vertex = &self.edges[*last_edge].vertices[*reversed as usize];
+            if *next_vertex == edge.vertices[0] {
+                new_loop.push(*i_edge, false);
+            }
+            else if *next_vertex == edge.vertices[1] {
+                new_loop.push(*i_edge, true);
             }
             else {
                 return Err(format!(
-                    "Edge {} (vertices [{}, {}]) does not connect to edge {} (vertices [{}, {}]).",
-                    *i_edge, edge.vertices[0], edge.vertices[1],
-                    *i_next_edge, next_edge.vertices[0], next_edge.vertices[1]
+                    "Edge {} (vertices: [{}, {}], reversed: {}) does not connect to edge {} (vertices [{}, {}]) or its reverse.",
+                    *last_edge, &self.edges[*last_edge].vertices[0], &self.edges[*last_edge].vertices[1], reversed,
+                    *i_edge, &self.edges[*i_edge].vertices[0], &self.edges[*i_edge].vertices[1]
                 ));
             }
         }
