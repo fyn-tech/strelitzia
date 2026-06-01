@@ -99,7 +99,7 @@ impl Body {
             }
 
             let (last_edge, reversed) = &new_loop.last().unwrap();
-            let next_vertex = &self.edges[*last_edge].vertices[*reversed as usize];
+            let next_vertex = &self.edges[*last_edge].vertices[!*reversed as usize];
             if *next_vertex == edge.vertices[0] {
                 new_loop.push(*i_edge, false);
             }
