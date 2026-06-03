@@ -20,30 +20,30 @@ enum SurfaceType {
 }
 
 struct Edge {
-    pub vertices: [usize; 2],
+    pub i_vertices: [usize; 2],
 }
 
 struct EdgeLoop {
-    pub edges: Vec<usize>,
+    pub i_edges: Vec<usize>,
     pub reversed: Vec<bool>,
 }
 
 impl EdgeLoop {
     pub fn is_empty(&self) -> bool {
-        self.edges.is_empty() && self.reversed.is_empty()
+        self.i_edges.is_empty() && self.reversed.is_empty()
     }
 
     pub fn last(&self) -> Option<(usize, bool)> {
-        Some((*self.edges.last()?, *self.reversed.last()?))
+        Some((*self.i_edges.last()?, *self.reversed.last()?))
     }
 
     pub fn push(&mut self, edge: usize, reverse: bool) {
-        self.edges.push(edge);
+        self.i_edges.push(edge);
         self.reversed.push(reverse);
     }
 
     pub fn reserve(&mut self, additional: usize) {
-        self.edges.reserve(additional);
+        self.i_edges.reserve(additional);
         self.reversed.reserve(additional);
     }
 }
@@ -71,7 +71,7 @@ impl Body {
 
     pub fn add_edge(&mut self, i_vertex_0: usize, i_vertex_1: usize) -> usize {
         self.edges.push(Edge {
-            vertices: [i_vertex_0, i_vertex_1],
+            i_vertices: [i_vertex_0, i_vertex_1],
         });
         self.edges.len() - 1
     }
@@ -85,7 +85,7 @@ impl Body {
         }
 
         let mut new_loop = EdgeLoop {
-            edges: Vec::new(),
+            i_edges: Vec::new(),
             reversed: Vec::new(),
         };
         new_loop.reserve(i_edges.len());
@@ -103,21 +103,21 @@ impl Body {
             }
 
             let (last_edge, reversed) = &new_loop.last().unwrap();
-            let next_vertex = &self.edges[*last_edge].vertices[!*reversed as usize];
-            if *next_vertex == edge.vertices[0] {
+            let next_vertex = &self.edges[*last_edge].i_vertices[!*reversed as usize];
+            if *next_vertex == edge.i_vertices[0] {
                 new_loop.push(*i_edge, false);
-            } else if *next_vertex == edge.vertices[1] {
+            } else if *next_vertex == edge.i_vertices[1] {
                 new_loop.push(*i_edge, true);
             } else {
                 return Err(format!(
                     "Edge {} (vertices: [{}, {}], reversed: {}) does not connect to edge {} (vertices [{}, {}]) or its reverse.",
                     *last_edge,
-                    &self.edges[*last_edge].vertices[0],
-                    &self.edges[*last_edge].vertices[1],
+                    &self.edges[*last_edge].i_vertices[0],
+                    &self.edges[*last_edge].i_vertices[1],
                     reversed,
                     *i_edge,
-                    &self.edges[*i_edge].vertices[0],
-                    &self.edges[*i_edge].vertices[1]
+                    &self.edges[*i_edge].i_vertices[0],
+                    &self.edges[*i_edge].i_vertices[1]
                 ));
             }
         }
@@ -126,12 +126,20 @@ impl Body {
     }
 
     pub fn create_face(&mut self, i_loop: usize) -> Result<usize, String> {
-        // create face normal
         let edge_loop = self.edge_loops.get(i_loop).ok_or(format!(
             "Index {} not in range [0, {}).",
             i_loop,
             self.edge_loops.len()
         ))?;
+
+        // planar face - create face normal
+        if edge_loop.i_edges.len() < 3 {
+            return Err(
+                "Currently loops need at least 3 edges to prevent degenerate faces".to_string(),
+            );
+        }
+
+        let co_plane_0 = self.edges[edge_loop.i_edges[0]].i_vertices[0]
 
         Ok(0)
     }
