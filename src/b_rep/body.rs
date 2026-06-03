@@ -25,12 +25,12 @@ struct Edge {
     pub vertices: [usize; 2],
 }
 
-struct Loop {
+struct EdgeLoop {
     pub edges: Vec<usize>,
     pub reversed: Vec<bool>,
 }
 
-impl Loop {
+impl EdgeLoop {
     pub fn is_empty(&self) -> bool {
         self.edges.is_empty() && self.reversed.is_empty()
     }
@@ -55,15 +55,15 @@ struct Surface {
 }
 
 struct Face {
-    pub outer_loop: Loop,
-    pub inner_loops: Vec<Loop>,
+    pub outer_edge_loop: EdgeLoop,
+    pub inner_edge_loops: Vec<EdgeLoop>,
     pub surface: Surface
 }
 
 struct Body {
     pub vertices: Vec<Vector3>,
     pub edges: Vec<Edge>,
-    pub loops: Vec<Loop>,
+    pub edge_loops: Vec<EdgeLoop>,
     pub faces: Vec<Face>,
 }
 
@@ -73,24 +73,24 @@ impl Body {
         self.vertices.len() - 1
     }
 
-    pub fn add_edge(&mut self, vertex_0: usize, vertex_1: usize) -> usize {
-        self.edges.push(Edge{vertices: [vertex_0, vertex_1]});
+    pub fn add_edge(&mut self, i_vertex_0: usize, i_vertex_1: usize) -> usize {
+        self.edges.push(Edge{vertices: [i_vertex_0, i_vertex_1]});
         self.edges.len() - 1
     }
 
-    pub fn create_loop(&mut self, edges: &Vec<usize>) -> Result<usize, String> {
+    pub fn create_loop(&mut self, i_edges: &Vec<usize>) -> Result<usize, String> {
 
-        if edges.is_empty() {
+        if i_edges.is_empty() {
             return Err("No edges provided.".to_string());
         }
-        if edges.len() < 2 {
-            return Err(format!("Loop requires two edges, got {}.", edges.len()));
+        if i_edges.len() < 2 {
+            return Err(format!("Loop requires two edges, got {}.", i_edges.len()));
         }
 
-        let mut new_loop = Loop{ edges: Vec::new(), reversed: Vec::new() };
-        new_loop.reserve(edges.len());
+        let mut new_loop = EdgeLoop{ edges: Vec::new(), reversed: Vec::new() };
+        new_loop.reserve(i_edges.len());
 
-        for i_edge in edges.iter() {
+        for i_edge in i_edges.iter() {
             let edge = self.edges.get(*i_edge).ok_or( format!("Index {} not in range [0, {}).", *i_edge, self.edges.len()))?;
             
             if new_loop.is_empty() {
@@ -114,8 +114,12 @@ impl Body {
                 ));
             }
         }
-        self.loops.push(new_loop);
-        Ok(self.loops.len() - 1)
+        self.edge_loops.push(new_loop);
+        Ok(self.edge_loops.len() - 1)
+    }
+
+    pub fn create_face(&mut self, i_loop: usize) {
+        
     }
 }
 
