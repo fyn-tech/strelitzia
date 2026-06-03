@@ -118,8 +118,14 @@ impl Body {
         Ok(self.edge_loops.len() - 1)
     }
 
-    pub fn create_face(&mut self, i_loop: usize) {
+    pub fn create_face(&mut self, i_loop: usize) -> Result<usize, String> {
         
+        // create face normal
+        let edge_loop = self.edge_loops.get(i_loop).ok_or(format!("Index {} not in range [0, {}).", i_loop, self.edge_loops.len()))?;
+        
+
+
+        Ok(0)
     }
 }
 

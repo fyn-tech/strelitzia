@@ -1,4 +1,6 @@
 {
     "rust-analyzer.cargo.features": [],
-    "rust-analyzer.cargo.noDefaultFeatures": false
+    "rust-analyzer.cargo.noDefaultFeatures": false,
+    "editor.formatOnSave": true,
+    "editor.rulers": [100]
 }
