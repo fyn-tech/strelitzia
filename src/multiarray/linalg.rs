@@ -82,6 +82,10 @@ pub trait CrossProduct<T> {
     fn cross(&self, other: &Self) -> Self::Output;
 }
 
+pub fn cross<T, V: CrossProduct<T>>(v0: &V, v1: &V) -> V::Output {
+    v0.cross(v1)
+}
+
 // 3D cross: Vector<T,3> x Vector<T,3> -> Vector<T,3>
 impl<T: na::RealField + Copy> CrossProduct<T> for Vector<T, 3> {
     type Output = Vector<T, 3>;

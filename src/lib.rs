@@ -9,6 +9,7 @@
 //! - [`meshgen`] -- mesh generation algorithms (CVT)
 //! - [`visualiser`] -- VTK export for ParaView visualisation
 
+pub mod b_rep;
 pub mod common;
 pub mod fields;
 pub mod geometry;

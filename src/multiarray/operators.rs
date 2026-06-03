@@ -37,6 +37,13 @@ impl<T, S: Shape, B: Add<Output = B>> Add for MultiArray<T, S, B> {
     }
 }
 
+impl<T, S: Shape, B: Add<Output = B> + Clone> Add for &MultiArray<T, S, B> {
+    type Output = MultiArray<T, S, B>;
+    fn add(self, rhs: Self) -> Self::Output {
+        self.clone() + rhs.clone()
+    }
+}
+
 impl<T, S: Shape, B: Sub<Output = B>> Sub for MultiArray<T, S, B> {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
@@ -44,6 +51,13 @@ impl<T, S: Shape, B: Sub<Output = B>> Sub for MultiArray<T, S, B> {
             data: self.data - rhs.data,
             _phantoms: PhantomData,
         }
+    }
+}
+
+impl<T, S: Shape, B: Sub<Output = B> + Clone> Sub for &MultiArray<T, S, B> {
+    type Output = MultiArray<T, S, B>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.clone() - rhs.clone()
     }
 }
 
@@ -68,6 +82,13 @@ impl<S: Shape, B: Mul<Real, Output = B>> Mul<MultiArray<Real, S, B>> for Real {
     }
 }
 
+impl<S: Shape, B: Mul<Real, Output = B> + Clone> Mul<&MultiArray<Real, S, B>> for Real {
+    type Output = MultiArray<Real, S, B>;
+    fn mul(self, rhs: &MultiArray<Real, S, B>) -> MultiArray<Real, S, B> {
+        self * rhs.clone()
+    }
+}
+
 // Scalar multiplication: MultiArray * Real  (scalar on the right)
 impl<S: Shape, B: Mul<Real, Output = B>> Mul<Real> for MultiArray<Real, S, B> {
     type Output = Self;
@@ -76,6 +97,13 @@ impl<S: Shape, B: Mul<Real, Output = B>> Mul<Real> for MultiArray<Real, S, B> {
             data: self.data * scalar,
             _phantoms: PhantomData,
         }
+    }
+}
+
+impl<S: Shape, B: Mul<Real, Output = B> + Clone> Mul<Real> for &MultiArray<Real, S, B> {
+    type Output = MultiArray<Real, S, B>;
+    fn mul(self, scalar: Real) -> Self::Output {
+        self.clone() * scalar
     }
 }
 

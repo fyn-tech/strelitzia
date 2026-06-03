@@ -3,6 +3,8 @@
 //! Contains definitions shared across all modules: the precision-controlled
 //! floating-point scalar `Real`, and fixed-width integer types `Int` and `UInt`.
 
+use std::fmt::Display;
+
 // ============================================================================
 // Floating-point precision control via feature flag
 // ============================================================================
@@ -27,3 +29,14 @@ pub type Int = i64;
 
 /// The default unsigned integer type. Always `u64`.
 pub type UInt = u64;
+
+// ============================================================================
+// Macro-like functions
+// ============================================================================
+
+pub fn bounds_failure_str<T>(index: T, upper_bounds: T) -> String
+where
+    T: Display,
+{
+    format!("Index {} not in range [0, {}).", index, upper_bounds)
+}
