@@ -37,6 +37,13 @@ impl<T, S: Shape, B: Add<Output = B>> Add for MultiArray<T, S, B> {
     }
 }
 
+impl<T, S: Shape, B: Add<Output = B> + Clone> Add for &MultiArray<T, S, B> {
+    type Output = MultiArray<T, S, B>;
+    fn add(self, rhs: Self) -> Self::Output {
+        self.clone() + rhs.clone()
+    }
+}
+
 impl<T, S: Shape, B: Sub<Output = B>> Sub for MultiArray<T, S, B> {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
@@ -44,6 +51,13 @@ impl<T, S: Shape, B: Sub<Output = B>> Sub for MultiArray<T, S, B> {
             data: self.data - rhs.data,
             _phantoms: PhantomData,
         }
+    }
+}
+
+impl<T, S: Shape, B: Sub<Output = B> + Clone> Sub for &MultiArray<T, S, B> {
+    type Output = MultiArray<T, S, B>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.clone() - rhs.clone()
     }
 }
 
