@@ -1,4 +1,3 @@
-
 use std::fmt::format;
 
 use crate::multiarray::Vector3;
@@ -19,7 +18,6 @@ enum SurfaceType {
     Cylinder,
     Nurbs,
 }
-
 
 struct Edge {
     pub vertices: [usize; 2],
@@ -50,14 +48,12 @@ impl EdgeLoop {
     }
 }
 
-struct Surface {
-    
-}
+struct Surface {}
 
 struct Face {
     pub outer_edge_loop: EdgeLoop,
     pub inner_edge_loops: Vec<EdgeLoop>,
-    pub surface: Surface
+    pub surface: Surface,
 }
 
 struct Body {
@@ -74,12 +70,13 @@ impl Body {
     }
 
     pub fn add_edge(&mut self, i_vertex_0: usize, i_vertex_1: usize) -> usize {
-        self.edges.push(Edge{vertices: [i_vertex_0, i_vertex_1]});
+        self.edges.push(Edge {
+            vertices: [i_vertex_0, i_vertex_1],
+        });
         self.edges.len() - 1
     }
 
     pub fn create_loop(&mut self, i_edges: &Vec<usize>) -> Result<usize, String> {
-
         if i_edges.is_empty() {
             return Err("No edges provided.".to_string());
         }
@@ -87,12 +84,19 @@ impl Body {
             return Err(format!("Loop requires two edges, got {}.", i_edges.len()));
         }
 
-        let mut new_loop = EdgeLoop{ edges: Vec::new(), reversed: Vec::new() };
+        let mut new_loop = EdgeLoop {
+            edges: Vec::new(),
+            reversed: Vec::new(),
+        };
         new_loop.reserve(i_edges.len());
 
         for i_edge in i_edges.iter() {
-            let edge = self.edges.get(*i_edge).ok_or( format!("Index {} not in range [0, {}).", *i_edge, self.edges.len()))?;
-            
+            let edge = self.edges.get(*i_edge).ok_or(format!(
+                "Index {} not in range [0, {}).",
+                *i_edge,
+                self.edges.len()
+            ))?;
+
             if new_loop.is_empty() {
                 new_loop.push(*i_edge, false);
                 continue;
@@ -102,15 +106,18 @@ impl Body {
             let next_vertex = &self.edges[*last_edge].vertices[!*reversed as usize];
             if *next_vertex == edge.vertices[0] {
                 new_loop.push(*i_edge, false);
-            }
-            else if *next_vertex == edge.vertices[1] {
+            } else if *next_vertex == edge.vertices[1] {
                 new_loop.push(*i_edge, true);
-            }
-            else {
+            } else {
                 return Err(format!(
                     "Edge {} (vertices: [{}, {}], reversed: {}) does not connect to edge {} (vertices [{}, {}]) or its reverse.",
-                    *last_edge, &self.edges[*last_edge].vertices[0], &self.edges[*last_edge].vertices[1], reversed,
-                    *i_edge, &self.edges[*i_edge].vertices[0], &self.edges[*i_edge].vertices[1]
+                    *last_edge,
+                    &self.edges[*last_edge].vertices[0],
+                    &self.edges[*last_edge].vertices[1],
+                    reversed,
+                    *i_edge,
+                    &self.edges[*i_edge].vertices[0],
+                    &self.edges[*i_edge].vertices[1]
                 ));
             }
         }
@@ -119,13 +126,13 @@ impl Body {
     }
 
     pub fn create_face(&mut self, i_loop: usize) -> Result<usize, String> {
-        
         // create face normal
-        let edge_loop = self.edge_loops.get(i_loop).ok_or(format!("Index {} not in range [0, {}).", i_loop, self.edge_loops.len()))?;
-        
-
+        let edge_loop = self.edge_loops.get(i_loop).ok_or(format!(
+            "Index {} not in range [0, {}).",
+            i_loop,
+            self.edge_loops.len()
+        ))?;
 
         Ok(0)
     }
 }
-
