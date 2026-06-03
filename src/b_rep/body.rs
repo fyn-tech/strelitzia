@@ -1,6 +1,6 @@
-use crate::common::bounds_failure_str;
+use crate::common::{Real, bounds_failure_str};
 use crate::multiarray::Vector3;
-
+use crate::multiarray::linalg::cross;
 // notes:
 //  pages.mtu.edu/~shene/COURSES/cs3621/NOTES/
 //  developer.rhino3d.com/guides/general/essential-mathematics/parametric-curves-surfaces/
@@ -150,7 +150,13 @@ impl Body {
             );
         }
 
-        let co_plane_0 = &self.edges[edge_loop.i_edges[0]];
+        let co_plane_0 =
+            (!edge_loop.reversed[0] as u8 as Real) * &self.edges[edge_loop.i_edges[0]].direction;
+        let co_plane_1 =
+            (!edge_loop.reversed[1] as u8 as Real) * &self.edges[edge_loop.i_edges[1]].direction;
+        let plain_normal = cross(&co_plane_0, &co_plane_1);
+
+        // todo plane constant and add to surface.
         Ok(0)
     }
 }
