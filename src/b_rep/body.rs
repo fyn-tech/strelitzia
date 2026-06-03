@@ -1,5 +1,4 @@
-use std::fmt::format;
-
+use crate::common::bounds_failure_str;
 use crate::multiarray::Vector3;
 
 // notes:
@@ -21,6 +20,7 @@ enum SurfaceType {
 
 struct Edge {
     pub i_vertices: [usize; 2],
+    pub direction: Vector3,
 }
 
 struct EdgeLoop {
@@ -69,11 +69,22 @@ impl Body {
         self.vertices.len() - 1
     }
 
-    pub fn add_edge(&mut self, i_vertex_0: usize, i_vertex_1: usize) -> usize {
+    pub fn add_edge(&mut self, i_vertex_0: usize, i_vertex_1: usize) -> Result<usize, String> {
+        let vertex_0 = self
+            .vertices
+            .get(i_vertex_0)
+            .ok_or(bounds_failure_str(i_vertex_0, self.vertices.len()))?;
+
+        let vertex_1 = self
+            .vertices
+            .get(i_vertex_1)
+            .ok_or(bounds_failure_str(i_vertex_1, self.vertices.len()))?;
+
         self.edges.push(Edge {
             i_vertices: [i_vertex_0, i_vertex_1],
+            direction: vertex_1 - vertex_0,
         });
-        self.edges.len() - 1
+        Ok(self.edges.len() - 1)
     }
 
     pub fn create_loop(&mut self, i_edges: &Vec<usize>) -> Result<usize, String> {
@@ -139,8 +150,7 @@ impl Body {
             );
         }
 
-        let co_plane_0 = self.edges[edge_loop.i_edges[0]].i_vertices[0]
-
+        let co_plane_0 = &self.edges[edge_loop.i_edges[0]];
         Ok(0)
     }
 }
