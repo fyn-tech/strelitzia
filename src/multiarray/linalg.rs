@@ -20,7 +20,8 @@
 use super::aliases::*;
 use super::types::*;
 use nalgebra as na;
-use std::ops::Mul;
+use nalgebra::Scalar;
+use std::ops::{Mul, Sub};
 
 // ============================================================================
 // VectorOps -- implemented for Vector<T, N> (any dimension)
@@ -69,6 +70,25 @@ impl<T: na::RealField + Copy, const N: usize> VectorOps<T> for Vector<T, N> {
     }
     fn normalised(&self) -> Self {
         Self::from_inner(self.as_inner().normalize())
+    }
+}
+
+// ============================================================================
+// DotProduct -- implemented for 2-vectors and 3-vectors
+// ============================================================================
+
+/// Dot product. Return type varies by dimension.
+pub trait DotProduct<T> {
+    fn dot(&self, other: &Self) -> T;
+}
+
+pub fn dot<T, V: DotProduct<T>>(v0: &V, v1: &V) -> T {
+    v0.dot(v1)
+}
+
+impl<T: na::RealField + Copy, const N: usize> DotProduct<T> for Vector<T, N> {
+    fn dot(&self, other: &Self) -> T {
+        self.as_inner().dot(other.as_inner())
     }
 }
 
@@ -161,6 +181,29 @@ where
         }
         result
     }
+}
+
+// ============================================================================
+// Projections -- Orthogonal and Tangential
+// ============================================================================
+
+/// Cross product. Return type varies by dimension.
+
+pub fn tangential<T, V>(v0: &V, n1: &V) -> V
+where
+    V: DotProduct<T>,
+    for<'a> &'a V: Mul<T, Output = V>,
+{
+    v0 * dot(v0, n1)
+}
+
+pub fn orthogonal<T, V>(v0: &V, n1: &V) -> V
+where
+    V: DotProduct<T>,
+    for<'a> &'a V: Mul<T, Output = V> + Sub<Output = V>,
+{
+    let tangential = v0 * dot(v0, n1);
+    v0 - &tangential
 }
 
 // ============================================================================
