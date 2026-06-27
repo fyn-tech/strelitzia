@@ -74,6 +74,39 @@ impl<T: na::RealField + Copy, const N: usize> VectorOps<T> for Vector<T, N> {
 }
 
 // ============================================================================
+// Norms
+// ============================================================================
+
+/// Dot product. Return type varies by dimension.
+pub trait Norms<T> {
+    fn l1_norm(&self) -> T;
+    fn l2_norm(&self) -> T;
+    fn linf_norm(&self) -> T;
+    fn norm_squared(&self) -> T;
+    fn normalised(&self) -> T;
+}
+
+pub fn l1_norm<T, V: Norms<T>>(v0: &V) -> T {
+    v0.l1_norm()
+}
+
+pub fn l2_norm<T, V: Norms<T>>(v0: &V) -> T {
+    v0.l2_norm()
+}
+
+pub fn linf_norm<T, V: Norms<T>>(v0: &V) -> T {
+    v0.linf_norm()
+}
+
+pub fn norm_squared<T, V: Norms<T>>(v0: &V) -> T {
+    v0.norm_squared()
+}
+
+pub fn normalised<T, V: Norms<T>>(v0: &V) -> T {
+    v0.normalised()
+}
+
+// ============================================================================
 // DotProduct -- implemented for 2-vectors and 3-vectors
 // ============================================================================
 
