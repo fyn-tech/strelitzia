@@ -2,8 +2,8 @@ use std::num::FpCategory::Infinite;
 use std::usize;
 
 use crate::common::{Real, bounds_failure_str};
+use crate::multiarray::linalg::{cross, dot, l2_norm, normalised};
 use crate::multiarray::{Vector2, Vector3};
-use crate::multiarray::linalg::{dot, normalised, l2_norm, cross};
 // notes:
 //  pages.mtu.edu/~shene/COURSES/cs3621/NOTES/
 //  developer.rhino3d.com/guides/general/essential-mathematics/parametric-curves-surfaces/
@@ -20,7 +20,6 @@ enum SurfaceType {
     Cylinder,
     Nurbs,
 }
-
 
 struct Edge {
     pub i_vertices: [usize; 2],
@@ -52,7 +51,6 @@ impl EdgeLoop {
     }
 }
 
-
 struct UVBasis {
     pub origin: Vector3, // origin in R3 canonical
     pub u_axis: Vector3, // u_axis in R3 canonical
@@ -60,9 +58,7 @@ struct UVBasis {
 }
 
 impl UVBasis {
-
     pub fn new(origin: &Vector3, normal: &Vector3) -> Self {
-
         // degenerate cases -> normal no normalised
         let seed = if normal[0].abs() < 0.9 {
             Vector3::new(1.0, 0.0, 0.0)
@@ -71,7 +67,11 @@ impl UVBasis {
         };
         let u_axis = normalised(&cross(&seed, normal));
         let v_axis = normalised(&cross(normal, &u_axis));
-        Self { origin: *origin, u_axis, v_axis }
+        Self {
+            origin: *origin,
+            u_axis,
+            v_axis,
+        }
     }
 
     pub fn origin_from_xyz(&mut self, origin: &Vector3) {
@@ -82,7 +82,6 @@ impl UVBasis {
         self.origin = self.to_xyz(&origin)
     }
 
-
     pub fn to_uv(&self, v: &Vector3) -> Vector2 {
         let translate = v - &self.origin;
         Vector2::new(dot(&translate, &self.u_axis), dot(&translate, &self.v_axis))
@@ -91,20 +90,39 @@ impl UVBasis {
     pub fn to_xyz(&self, uv: &Vector2) -> Vector3 {
         uv[0] * &self.u_axis + uv[1] * &self.v_axis + self.origin
     }
-    
 }
-
 
 struct Surface {
     // u, v data
     pub uvvertices: Vec<Vector2>,
     pub uvedge: Vec<Edge>,
+    pub uvbasis: UVBasis,
+}
+
+impl Surface {
+    pub fn new(vertices: Vec<Vector2>, edge: Vec<Edge>, basis: UVBasis) -> Self {
+        Self {
+            uvvertices: vertices,
+            uvedge: edge,
+            uvbasis: basis,
+        }
+    }
 }
 
 struct Face {
     pub outer_edge_loop: usize,
     pub inner_edge_loops: Vec<usize>,
     pub surface: Surface,
+}
+
+impl Face {
+    pub fn new(outer_loop: usize, inner_loops: Vec<usize>, surface: Surface) -> Self {
+        Self {
+            outer_edge_loop: outer_loop,
+            inner_edge_loops: inner_loops,
+            surface: surface,
+        }
+    }
 }
 
 struct Body {
@@ -209,25 +227,50 @@ impl Body {
             (!edge_loop.reversed[1] as u8 as Real) * &self.edges[edge_loop.i_edges[1]].direction;
         let plain_normal = normalised(&cross(&co_plane_0, &co_plane_1));
 
-        // todo plane constant and add to surface.
-        let mut uv_basis = UVBasis::new(&self.vertices[self.edges[edge_loop.i_edges[0]].i_vertices[0]], &plain_normal);
-        
-        let mut new_uv_origin = Vector2::new(Real::INFINITY,Real::INFINITY);
+        // create basis
+        let mut uv_basis = UVBasis::new(
+            &self.vertices[self.edges[edge_loop.i_edges[0]].i_vertices[0]],
+            &plain_normal,
+        );
+        let mut new_uv_origin = Vector2::new(Real::INFINITY, Real::INFINITY);
+        let mut uv_vertices: Vec<Vector2> = vec![];
+        let mut uv_edges: Vec<Edge> = vec![];
         for (i_local, i_edge) in edge_loop.i_edges.iter().enumerate() {
             let edge = &self.edges[*i_edge];
-            let uv_point = uv_basis.to_uv(&self.vertices[edge.i_vertices[0 + edge_loop.reversed[i_local] as usize]]);
-            new_uv_origin[0] = Real::min(new_uv_origin[0], uv_point[0]);
-            new_uv_origin[1] = Real::min(new_uv_origin[1], uv_point[1]);
+            uv_vertices.push(
+                uv_basis.to_uv(
+                    &self.vertices[edge.i_vertices[0 + edge_loop.reversed[i_local] as usize]],
+                ),
+            );
+
+            new_uv_origin[0] = Real::min(new_uv_origin[0], uv_vertices.last().unwrap()[0]);
+            new_uv_origin[1] = Real::min(new_uv_origin[1], uv_vertices.last().unwrap()[1]);
+
+            if i_local == 0 {
+                continue;
+            }
+
+            uv_edges.push(Edge {
+                i_vertices: [i_local - 1, i_local],
+                direction: Vector3::new(uv_vertices[i_local][0], uv_vertices[i_local][1], 0.0)
+                    - Vector3::new(
+                        uv_vertices[i_local - 1][0],
+                        uv_vertices[i_local - 1][1],
+                        0.0,
+                    ),
+            });
         }
         uv_basis.origin_from_uv(&new_uv_origin);
-        
+        let surface = Surface::new(uv_vertices, uv_edges, uv_basis);
 
-        
+        // Create new face
+        // self.faces.append(Face::new(outer_loop, inner_loops, surface));
+
         Ok(0)
     }
 
-    pub fn get_point_face(&self, i_face: usize) -> Vector3 {
-        // return Vector3.new();
-    }
-pub fn get_point_surface -> Option<Vector3>
+    // pub fn get_point_face(&self, i_face: usize) -> Vector3 {
+    //     // return Vector3.new();
+    // }
+    //pub fn get_point_surface -> Option<Vector3>
 }
