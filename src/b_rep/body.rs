@@ -99,30 +99,10 @@ struct Surface {
     pub uvbasis: UVBasis,
 }
 
-impl Surface {
-    pub fn new(vertices: Vec<Vector2>, edge: Vec<Edge>, basis: UVBasis) -> Self {
-        Self {
-            uvvertices: vertices,
-            uvedge: edge,
-            uvbasis: basis,
-        }
-    }
-}
-
 struct Face {
     pub outer_edge_loop: usize,
     pub inner_edge_loops: Vec<usize>,
     pub surface: Surface,
-}
-
-impl Face {
-    pub fn new(outer_loop: usize, inner_loops: Vec<usize>, surface: Surface) -> Self {
-        Self {
-            outer_edge_loop: outer_loop,
-            inner_edge_loops: inner_loops,
-            surface: surface,
-        }
-    }
 }
 
 struct Body {
@@ -261,12 +241,19 @@ impl Body {
             });
         }
         uv_basis.origin_from_uv(&new_uv_origin);
-        let surface = Surface::new(uv_vertices, uv_edges, uv_basis);
 
         // Create new face
-        // self.faces.append(Face::new(outer_loop, inner_loops, surface));
+        self.faces.push(Face {
+            outer_edge_loop: i_loop,
+            inner_edge_loops: vec![],
+            surface: Surface {
+                uvvertices: (uv_vertices),
+                uvedge: (uv_edges),
+                uvbasis: (uv_basis),
+            },
+        });
 
-        Ok(0)
+        Ok(self.faces.len() - 1);
     }
 
     // pub fn get_point_face(&self, i_face: usize) -> Vector3 {
