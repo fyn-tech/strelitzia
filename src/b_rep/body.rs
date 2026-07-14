@@ -253,11 +253,20 @@ impl Body {
             },
         });
 
-        Ok(self.faces.len() - 1);
+        Ok(self.faces.len() - 1)
     }
 
-    // pub fn get_point_face(&self, i_face: usize) -> Vector3 {
-    //     // return Vector3.new();
-    // }
+    // returns the associated x,y,z point, for a face and uv co-oridnate. The point may not lie on
+    // the surface, as no constraints are checked (use get_point_on_surface).
+    pub fn get_point_on_face(&self, i_face: usize, uv: &Vector2) -> Result<Vector3, String> {
+        let face = self.faces.get(i_face).ok_or(format!(
+            "Index {} not in range [0, {}).",
+            i_face,
+            self.faces.len()
+        ))?;
+
+        Ok(face.surface.uvbasis.to_xyz(uv))
+    }
+
     //pub fn get_point_surface -> Option<Vector3>
 }
