@@ -130,6 +130,9 @@ pub fn cross<T, V: CrossProduct<T>>(v0: &V, v1: &V) -> V::Output {
     v0.cross(v1)
 }
 
+pub fn cross2d<T: na::RealField + Copy>(v0: &Vector<T, 2>, v1: &Vector<T, 2>) -> T {
+    v0.x() * v1.y() - v0.y() * v1.x()
+}
 // 3D cross: Vector<T,3> x Vector<T,3> -> Vector<T,3>
 impl<T: na::RealField + Copy> CrossProduct<T> for Vector<T, 3> {
     type Output = Vector<T, 3>;
