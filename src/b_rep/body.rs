@@ -1,6 +1,9 @@
+use std::num::FpCategory::Infinite;
+use std::usize;
+
 use crate::common::{Real, bounds_failure_str};
-use crate::multiarray::Vector3;
-use crate::multiarray::linalg::cross;
+use crate::multiarray::linalg::{cross, dot, l2_norm, normalised};
+use crate::multiarray::{Vector2, Vector3};
 // notes:
 //  pages.mtu.edu/~shene/COURSES/cs3621/NOTES/
 //  developer.rhino3d.com/guides/general/essential-mathematics/parametric-curves-surfaces/
@@ -48,15 +51,62 @@ impl EdgeLoop {
     }
 }
 
-struct Surface {}
+struct UVBasis {
+    pub origin: Vector3, // origin in R3 canonical
+    pub u_axis: Vector3, // u_axis in R3 canonical
+    pub v_axis: Vector3, // v_axis in R3 canonical
+}
+
+impl UVBasis {
+    pub fn new(origin: &Vector3, normal: &Vector3) -> Self {
+        // degenerate cases -> normal no normalised
+        let seed = if normal[0].abs() < 0.9 {
+            Vector3::new(1.0, 0.0, 0.0)
+        } else {
+            Vector3::new(0.0, 1.0, 0.0)
+        };
+        let u_axis = normalised(&cross(&seed, normal));
+        let v_axis = normalised(&cross(normal, &u_axis));
+        Self {
+            origin: *origin,
+            u_axis,
+            v_axis,
+        }
+    }
+
+    pub fn origin_from_xyz(&mut self, origin: &Vector3) {
+        self.origin = *origin
+    }
+
+    pub fn origin_from_uv(&mut self, origin: &Vector2) {
+        self.origin = self.to_xyz(&origin)
+    }
+
+    pub fn to_uv(&self, v: &Vector3) -> Vector2 {
+        let translate = v - &self.origin;
+        Vector2::new(dot(&translate, &self.u_axis), dot(&translate, &self.v_axis))
+    }
+
+    pub fn to_xyz(&self, uv: &Vector2) -> Vector3 {
+        uv[0] * &self.u_axis + uv[1] * &self.v_axis + self.origin
+    }
+}
+
+struct Surface {
+    // u, v data
+    pub uvvertices: Vec<Vector2>,
+    pub uvedge: Vec<Edge>,
+    pub uvbasis: UVBasis,
+}
 
 struct Face {
-    pub outer_edge_loop: EdgeLoop,
-    pub inner_edge_loops: Vec<EdgeLoop>,
+    pub outer_edge_loop: usize,
+    pub inner_edge_loops: Vec<usize>,
     pub surface: Surface,
 }
 
 struct Body {
+    // x, y, z
     pub vertices: Vec<Vector3>,
     pub edges: Vec<Edge>,
     pub edge_loops: Vec<EdgeLoop>,
@@ -137,7 +187,7 @@ impl Body {
     }
 
     pub fn create_face(&mut self, i_loop: usize) -> Result<usize, String> {
-        let edge_loop = self.edge_loops.get(i_loop).ok_or(format!(
+        let edge_loop = &self.edge_loops.get(i_loop).ok_or(format!(
             "Index {} not in range [0, {}).",
             i_loop,
             self.edge_loops.len()
@@ -150,13 +200,73 @@ impl Body {
             );
         }
 
+        // degenerate cases?
         let co_plane_0 =
             (!edge_loop.reversed[0] as u8 as Real) * &self.edges[edge_loop.i_edges[0]].direction;
         let co_plane_1 =
             (!edge_loop.reversed[1] as u8 as Real) * &self.edges[edge_loop.i_edges[1]].direction;
-        let plain_normal = cross(&co_plane_0, &co_plane_1);
+        let plain_normal = normalised(&cross(&co_plane_0, &co_plane_1));
 
-        // todo plane constant and add to surface.
-        Ok(0)
+        // create basis
+        let mut uv_basis = UVBasis::new(
+            &self.vertices[self.edges[edge_loop.i_edges[0]].i_vertices[0]],
+            &plain_normal,
+        );
+        let mut new_uv_origin = Vector2::new(Real::INFINITY, Real::INFINITY);
+        let mut uv_vertices: Vec<Vector2> = vec![];
+        let mut uv_edges: Vec<Edge> = vec![];
+        for (i_local, i_edge) in edge_loop.i_edges.iter().enumerate() {
+            let edge = &self.edges[*i_edge];
+            uv_vertices.push(
+                uv_basis.to_uv(
+                    &self.vertices[edge.i_vertices[0 + edge_loop.reversed[i_local] as usize]],
+                ),
+            );
+
+            new_uv_origin[0] = Real::min(new_uv_origin[0], uv_vertices.last().unwrap()[0]);
+            new_uv_origin[1] = Real::min(new_uv_origin[1], uv_vertices.last().unwrap()[1]);
+
+            if i_local == 0 {
+                continue;
+            }
+
+            uv_edges.push(Edge {
+                i_vertices: [i_local - 1, i_local],
+                direction: Vector3::new(uv_vertices[i_local][0], uv_vertices[i_local][1], 0.0)
+                    - Vector3::new(
+                        uv_vertices[i_local - 1][0],
+                        uv_vertices[i_local - 1][1],
+                        0.0,
+                    ),
+            });
+        }
+        uv_basis.origin_from_uv(&new_uv_origin);
+
+        // Create new face
+        self.faces.push(Face {
+            outer_edge_loop: i_loop,
+            inner_edge_loops: vec![],
+            surface: Surface {
+                uvvertices: (uv_vertices),
+                uvedge: (uv_edges),
+                uvbasis: (uv_basis),
+            },
+        });
+
+        Ok(self.faces.len() - 1)
     }
+
+    // returns the associated x,y,z point, for a face and uv co-oridnate. The point may not lie on
+    // the surface, as no constraints are checked (use get_point_on_surface).
+    pub fn get_point_on_face(&self, i_face: usize, uv: &Vector2) -> Result<Vector3, String> {
+        let face = self.faces.get(i_face).ok_or(format!(
+            "Index {} not in range [0, {}).",
+            i_face,
+            self.faces.len()
+        ))?;
+
+        Ok(face.surface.uvbasis.to_xyz(uv))
+    }
+
+    //pub fn get_point_surface -> Option<Vector3>
 }
