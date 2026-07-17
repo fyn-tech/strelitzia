@@ -4,3 +4,4 @@
 //! axis-aligned bounding box suitable for spatial queries and tree construction.
 
 mod axis_aligned_bounding_box;
+mod lines;
