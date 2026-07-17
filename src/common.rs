@@ -20,6 +20,53 @@ pub type Real = f32;
 #[cfg(not(feature = "single-precision"))]
 pub type Real = f64;
 
+/// Default absolute tolerance for Real comparisons: a power-of-two multiple
+/// of the type's machine epsilon, so the scaling itself introduces no
+/// additional rounding error.
+#[cfg(feature = "single-precision")]
+pub const EPSILON_ABS: Real = Real::EPSILON * 64.0;
+/// Default absolute tolerance for Real comparisons: a power-of-two multiple
+/// of the type's machine epsilon, so the scaling itself introduces no
+/// additional rounding error.
+#[cfg(not(feature = "single-precision"))]
+pub const EPSILON_ABS: Real = Real::EPSILON * 1024.0;
+
+/// Default relative tolerance for Real comparisons.
+#[cfg(feature = "single-precision")]
+pub const EPSILON_REL: Real = Real::EPSILON * 64.0;
+/// Default relative tolerance for Real comparisons.
+#[cfg(not(feature = "single-precision"))]
+pub const EPSILON_REL: Real = Real::EPSILON * 1024.0;
+
+pub fn abs_diff_eq(a: Real, b: Real, epsilon: Real) -> bool {
+    (a - b).abs() <= epsilon
+}
+
+pub fn relative_eq(a: Real, b: Real, epsilon: Real) -> bool {
+    let diff = (a - b).abs();
+    diff <= epsilon * a.abs().max(b.abs())
+}
+
+pub fn approx_eq(a: Real, b: Real) -> bool {
+    abs_diff_eq(a, b, EPSILON_ABS) || relative_eq(a, b, EPSILON_REL)
+}
+
+pub fn approx_gte(a: Real, b: Real) -> bool {
+    a > b || abs_diff_eq(a, b, EPSILON_ABS) || relative_eq(a, b, EPSILON_REL)
+}
+
+pub fn approx_lte(a: Real, b: Real) -> bool {
+    a < b || abs_diff_eq(a, b, EPSILON_ABS) || relative_eq(a, b, EPSILON_REL)
+}
+
+pub fn approx_gt(a: Real, b: Real) -> bool {
+    !approx_lte(a, b)
+}
+
+pub fn approx_lt(a: Real, b: Real) -> bool {
+    !approx_gte(a, b)
+}
+
 // ============================================================================
 // Integer types (fixed width, no feature flag)
 // ============================================================================
